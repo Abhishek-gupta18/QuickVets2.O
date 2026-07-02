@@ -4,7 +4,7 @@ import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import bcrypt from 'bcryptjs';
 import { eq, desc, and, sql } from 'drizzle-orm';
-import { db, testConnection, closePool } from './src/server/db.js';
+import { db, testConnection, closePool, isDatabaseAvailable } from './src/server/db.js';
 import {
   vetClinics, users, pets, favoriteClinics,
   clinicReviews, bookings, emergencyRequests,
@@ -50,6 +50,19 @@ app.use('/api', (req, res, next) => {
   next();
 });
 
+// Database availability gate: return proper JSON error if DB is down
+// Skip for /api/health which is a diagnostic endpoint
+app.use('/api', (req, res, next) => {
+  if (req.path === '/health') return next();
+  if (!isDatabaseAvailable) {
+    return res.status(503).json({
+      error: 'Database is currently unavailable. Please ensure DATABASE_URL is configured and the database is running.',
+      hint: 'Check server logs for connection details.'
+    });
+  }
+  next();
+});
+
 // --- Utility Helpers ---
 function normalizeEmail(email: unknown): string {
   return typeof email === 'string' ? email.trim().toLowerCase() : '';
@@ -78,6 +91,23 @@ function getISTTime(): string {
 function getISTDate(): string {
   return new Date().toISOString().split('T')[0];
 }
+
+
+// ========================
+// HEALTH CHECK (bypasses DB gate)
+// ========================
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: isDatabaseAvailable ? 'healthy' : 'degraded',
+    database: isDatabaseAvailable ? 'connected' : 'disconnected',
+    timestamp: new Date().toISOString(),
+    env: {
+      DATABASE_URL: process.env.DATABASE_URL ? '✅ configured' : '❌ missing',
+      JWT_SECRET: process.env.JWT_SECRET ? '✅ configured' : '❌ missing',
+      GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID ? '✅ configured' : '❌ missing',
+    }
+  });
+});
 
 
 // ========================
@@ -179,6 +209,89 @@ app.post('/api/auth/reset-password', async (req, res) => {
   } catch (err: any) {
     console.error('Reset password error:', err);
     res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+
+// AUTH: Google OAuth - Sign in or Sign up with Google ID Token
+app.post('/api/auth/google', async (req, res) => {
+  try {
+    const { credential, role } = req.body;
+    if (!credential) {
+      return res.status(400).json({ error: 'Google credential token is required.' });
+    }
+
+    // Verify the Google ID token using Google's tokeninfo endpoint
+    const googleRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`);
+    if (!googleRes.ok) {
+      return res.status(401).json({ error: 'Invalid Google credential. Please try again.' });
+    }
+    const googlePayload = await googleRes.json() as {
+      sub: string;
+      email: string;
+      email_verified: string;
+      name: string;
+      picture: string;
+      aud: string;
+    };
+
+    // Verify the audience (client ID) matches our app
+    const expectedClientId = process.env.GOOGLE_CLIENT_ID;
+    if (expectedClientId && googlePayload.aud !== expectedClientId) {
+      return res.status(401).json({ error: 'Google token audience mismatch. Invalid client.' });
+    }
+
+    if (googlePayload.email_verified !== 'true') {
+      return res.status(401).json({ error: 'Google email is not verified.' });
+    }
+
+    const normalizedEmail = normalizeEmail(googlePayload.email);
+    const googleName = googlePayload.name || normalizedEmail.split('@')[0];
+    const googleAvatar = googlePayload.picture || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(googleName)}`;
+
+    // Check if user already exists
+    const [existingUser] = await db.select().from(users).where(eq(users.email, normalizedEmail)).limit(1);
+
+    if (existingUser) {
+      // Existing user — log them in
+      const token = signToken(
+        { id: existingUser.id, email: normalizedEmail, role: existingUser.role, clinicId: existingUser.clinicId || undefined },
+        getJwtSecret(),
+        getSessionExpiryForRole(existingUser.role)
+      );
+      const userResponse = await buildUserResponse(existingUser.id);
+      return res.json({ user: userResponse, token });
+    }
+
+    // New user — create account (default role: pet_owner unless specified)
+    const userRole = (role && ['pet_owner', 'veterinarian'].includes(role)) ? role : 'pet_owner';
+    const id = `user-${Date.now()}`;
+    // Generate a random password hash (user won't use password login via Google)
+    const randomPassword = `google_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const passwordHash = await bcrypt.hash(randomPassword, 10);
+
+    const [newUser] = await db.insert(users).values({
+      id,
+      email: normalizedEmail,
+      passwordHash,
+      name: googleName,
+      role: userRole,
+      phone: '',
+      avatarUrl: googleAvatar,
+      clinicId: null,
+    }).returning();
+
+    const token = signToken(
+      { id: newUser.id, email: normalizedEmail, role: newUser.role, clinicId: newUser.clinicId || undefined },
+      getJwtSecret(),
+      getSessionExpiryForRole(newUser.role)
+    );
+
+    const userResponse = await buildUserResponse(newUser.id);
+    res.status(201).json({ user: userResponse, token });
+  } catch (err: any) {
+    console.error('Google OAuth error:', err);
+    res.status(500).json({ error: 'Internal server error during Google authentication.' });
   }
 });
 
@@ -699,10 +812,22 @@ async function buildUserResponse(userId: string) {
 // VITE MIDDLEWARE & SERVER START
 // ========================
 async function startServer() {
-  // Test database connection before starting
+  // Test database connection before starting (non-fatal)
   const dbConnected = await testConnection();
   if (!dbConnected) {
-    console.error('⚠️  WARNING: Database connection failed. API routes requiring DB will fail.');
+    console.error('⚠️  WARNING: Database connection failed on startup.');
+    console.error('   API routes will return 503 until the database becomes available.');
+    console.error('   Check your DATABASE_URL and ensure PostgreSQL is running.');
+    
+    // Retry connection every 15s in background
+    const retryInterval = setInterval(async () => {
+      console.log('🔄 Retrying database connection...');
+      const connected = await testConnection();
+      if (connected) {
+        console.log('🎉 Database connection restored!');
+        clearInterval(retryInterval);
+      }
+    }, 15000);
   }
 
   if (process.env.NODE_ENV !== 'production') {
