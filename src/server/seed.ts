@@ -485,7 +485,19 @@ function buildVeterinarianUsers(clinics: ClinicSeed[], passwordHash: string): Ge
 
 function buildOwnerUsers(passwordHash: string): GeneratedUser[] {
   const usersGenerated: GeneratedUser[] = [];
-  for (let index = 0; index < 4878; index += 1) {
+  usersGenerated.push({
+    id: 'user-owner',
+    email: 'owner@gmail.com',
+    passwordHash,
+    name: 'Prabal Beas',
+    role: 'pet_owner',
+    phone: '+91 98765 43210',
+    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150',
+    clinicId: null,
+    createdAt: now,
+  });
+
+  for (let index = 0; index < 4877; index += 1) {
     const name = `${pick(firstNames)} ${pick(lastNames)}`;
     usersGenerated.push({
       id: `user-owner-${String(index + 1).padStart(4, '0')}`,
