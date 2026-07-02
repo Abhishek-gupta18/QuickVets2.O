@@ -1,0 +1,63 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+  
+  --color-primary: #58B368;
+  --color-secondary: #2F855A;
+  --color-accent: #BFE7C4;
+  --color-bg: #F4FBF3;
+  --color-text: #2D3748;
+  
+  --shadow-custom: 0 10px 30px -10px rgba(88, 179, 104, 0.14);
+  --shadow-success: 0 10px 30px -10px rgba(47, 133, 90, 0.12);
+}
+
+@layer base {
+  body {
+    font-family: 'Inter', sans-serif;
+    background-color: #F4FBF3;
+    color: #2D3748;
+    overflow-x: hidden;
+  }
+}
+
+.font-display {
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F4FBF3;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #E2E8F0;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #58B368;
+}
+
+/* Leaflet map general fixes */
+.leaflet-popup-content-wrapper {
+  border-radius: 12px !important;
+  font-family: 'Inter', sans-serif !important;
+  padding: 4px !important;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1) !important;
+}
+
+.leaflet-popup-tip {
+  background: white !important;
+}
+
+.leaflet-container {
+  font-family: 'Inter', sans-serif !important;
+}
