@@ -41,6 +41,28 @@ export function authenticateToken(req: any, res: any, next: any): void {
   next();
 }
 
+export function optionalAuthenticateToken(req: any, _res: any, next: any): void {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    req.user = undefined;
+    next();
+    return;
+  }
+
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    req.user = undefined;
+    next();
+    return;
+  }
+
+  const decoded = verifyToken(token, secret);
+  req.user = decoded || undefined;
+  next();
+}
+
 /**
  * Middleware factory that restricts access to specific roles.
  * Must be used AFTER authenticateToken.

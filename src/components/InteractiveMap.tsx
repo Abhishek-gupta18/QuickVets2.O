@@ -30,9 +30,9 @@ export default function InteractiveMap({
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
-    // Center point: Bengaluru, India (Default or user location if available)
-    const initialLat = userLocation?.lat || 12.9716;
-    const initialLng = userLocation?.lng || 77.5946;
+    // Center point: use the user's location when available, otherwise a neutral India view.
+    const initialLat = userLocation?.lat ?? 20.5937;
+    const initialLng = userLocation?.lng ?? 78.9629;
 
     // Create Leaflet instance if not exists
     if (!mapInstanceRef.current) {
