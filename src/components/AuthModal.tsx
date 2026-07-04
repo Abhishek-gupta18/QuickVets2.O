@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Mail, Lock, User, Phone, CheckCircle } from 'lucide-react';
 import { UserRole, User as UserType } from '../types';
 
@@ -60,50 +60,7 @@ export default function AuthModal({
   const googleButtonRef = useRef<HTMLDivElement>(null);
   const GOOGLE_CLIENT_ID = (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID || '';
 
-  // Initialize Google Sign-In button when component mounts
-  useEffect(() => {
-    if (!GOOGLE_CLIENT_ID || isForgotPassword) return;
-
-    const initializeGoogle = () => {
-      if (!window.google?.accounts?.id || !googleButtonRef.current) return;
-
-      window.google.accounts.id.initialize({
-        client_id: GOOGLE_CLIENT_ID,
-        callback: handleGoogleCredentialResponse,
-      });
-
-      window.google.accounts.id.renderButton(googleButtonRef.current, {
-        theme: 'outline',
-        size: 'large',
-        width: '100%',
-        text: type === 'login' ? 'signin_with' : 'signup_with',
-        shape: 'pill',
-        logo_alignment: 'center',
-      });
-    };
-
-    // Google script may not be loaded yet
-    if (window.google?.accounts?.id) {
-      initializeGoogle();
-    } else {
-      // Wait for script to load
-      const checkInterval = setInterval(() => {
-        if (window.google?.accounts?.id) {
-          initializeGoogle();
-          clearInterval(checkInterval);
-        }
-      }, 200);
-
-      // Cleanup interval after 10s max
-      const timeout = setTimeout(() => clearInterval(checkInterval), 10000);
-      return () => {
-        clearInterval(checkInterval);
-        clearTimeout(timeout);
-      };
-    }
-  }, [type, GOOGLE_CLIENT_ID, isForgotPassword]);
-
-  const handleGoogleCredentialResponse = async (response: { credential: string }) => {
+  const handleGoogleCredentialResponse = useCallback(async (response: { credential: string }) => {
     setLoading(true);
     setErrorMsg('');
 
@@ -136,7 +93,46 @@ export default function AuthModal({
     } finally {
       setLoading(false);
     }
-  };
+  }, [onClose, onSuccess, role, type]);
+
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID || isForgotPassword) return;
+
+    const initializeGoogle = () => {
+      if (!window.google?.accounts?.id || !googleButtonRef.current) return;
+
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleGoogleCredentialResponse,
+      });
+
+      window.google.accounts.id.renderButton(googleButtonRef.current, {
+        theme: 'outline',
+        size: 'large',
+        width: '100%',
+        text: type === 'login' ? 'signin_with' : 'signup_with',
+        shape: 'pill',
+        logo_alignment: 'center',
+      });
+    };
+
+    if (window.google?.accounts?.id) {
+      initializeGoogle();
+    } else {
+      const checkInterval = setInterval(() => {
+        if (window.google?.accounts?.id) {
+          initializeGoogle();
+          clearInterval(checkInterval);
+        }
+      }, 200);
+
+      const timeout = setTimeout(() => clearInterval(checkInterval), 10000);
+      return () => {
+        clearInterval(checkInterval);
+        clearTimeout(timeout);
+      };
+    }
+  }, [type, GOOGLE_CLIENT_ID, isForgotPassword, handleGoogleCredentialResponse]);
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -213,7 +209,7 @@ export default function AuthModal({
           <h3 className="font-display font-black text-xl">
             {isForgotPassword 
               ? 'Reset Account Password' 
-              : type === 'login' ? 'Welcome Back Pet Parent!' : 'Join the QuickVet Clan'}
+              : type === 'login' ? 'Welcome Back!' : 'Join the QuickVet Clan'}
           </h3>
           <p className="text-white/80 text-xs mt-0.5">
             {isForgotPassword 

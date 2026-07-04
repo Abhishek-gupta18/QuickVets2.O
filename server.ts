@@ -249,22 +249,30 @@ app.post('/api/auth/google', async (req, res) => {
     const googleName = googlePayload.name || normalizedEmail.split('@')[0];
     const googleAvatar = googlePayload.picture || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(googleName)}`;
 
+    const requestedRole = (role && ['pet_owner', 'veterinarian'].includes(role)) ? role : 'pet_owner';
+
     // Check if user already exists
     const [existingUser] = await db.select().from(users).where(eq(users.email, normalizedEmail)).limit(1);
 
     if (existingUser) {
+      let effectiveRole = existingUser.role;
+      if (role && ['pet_owner', 'veterinarian'].includes(role) && existingUser.role !== requestedRole) {
+        await db.update(users).set({ role: requestedRole }).where(eq(users.id, existingUser.id));
+        effectiveRole = requestedRole;
+      }
+
       // Existing user — log them in
       const token = signToken(
-        { id: existingUser.id, email: normalizedEmail, role: existingUser.role, clinicId: existingUser.clinicId || undefined },
+        { id: existingUser.id, email: normalizedEmail, role: effectiveRole, clinicId: existingUser.clinicId || undefined },
         getJwtSecret(),
-        getSessionExpiryForRole(existingUser.role)
+        getSessionExpiryForRole(effectiveRole)
       );
       const userResponse = await buildUserResponse(existingUser.id);
       return res.json({ user: userResponse, token });
     }
 
     // New user — create account (default role: pet_owner unless specified)
-    const userRole = (role && ['pet_owner', 'veterinarian'].includes(role)) ? role : 'pet_owner';
+    const userRole = requestedRole;
     const id = `user-${Date.now()}`;
     // Generate a random password hash (user won't use password login via Google)
     const randomPassword = `google_${Date.now()}_${Math.random().toString(36).slice(2)}`;
