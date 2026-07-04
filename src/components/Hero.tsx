@@ -5,6 +5,7 @@ import { VetClinic } from '../types';
 interface HeroProps {
   clinics: VetClinic[];
   userLocation: { lat: number; lng: number } | null;
+  userLocationLabel: string | null;
   onSelectClinic: (id: string) => void;
   onNavigateToFind: () => void;
   onNavigateToEmergency: () => void;
@@ -13,6 +14,7 @@ interface HeroProps {
 export default function Hero({
   clinics,
   userLocation,
+  userLocationLabel,
   onSelectClinic,
   onNavigateToFind,
   onNavigateToEmergency,
@@ -97,8 +99,8 @@ export default function Hero({
                 <Users className="w-5 h-5" />
               </div>
               <div className="text-left">
-                <span className="block text-sm font-black text-gray-800 font-display">10,000+</span>
-                <span className="text-[10px] text-gray-500 font-medium leading-none">Indian Pets Assisted</span>
+                <span className="block text-sm font-black text-gray-800 font-display">{userLocationLabel || 'Detecting your city…'}</span>
+                <span className="text-[10px] text-gray-500 font-medium leading-none">Live location</span>
               </div>
             </div>
 

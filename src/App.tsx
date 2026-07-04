@@ -80,6 +80,7 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [userLocationLabel, setUserLocationLabel] = useState<string | null>(null);
 
   // Database lists fetched from Express
   const [clinics, setClinics] = useState<VetClinic[]>([]);
@@ -115,24 +116,95 @@ export default function App() {
     setActiveTab('home');
   }, []);
 
+  const resolveLocationLabel = useCallback(async (lat: number, lng: number) => {
+    const formatLabel = (city?: string, state?: string, country?: string) => {
+      const parts = [city, state, country].filter(Boolean);
+      return parts.join(', ');
+    };
+
+    try {
+      const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=10&addressdetails=1`, {
+        headers: { 'Accept-Language': 'en' },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const city = data?.address?.city || data?.address?.town || data?.address?.village || data?.address?.suburb || '';
+        const state = data?.address?.state || data?.address?.region || '';
+        const country = data?.address?.country || '';
+        const label = formatLabel(city, state, country);
+        if (label) {
+          setUserLocationLabel(label);
+          return;
+        }
+      }
+    } catch {
+      // Fall back to a broader IP-based label below.
+    }
+
+    try {
+      const response = await fetch('https://ipapi.co/json/');
+      if (!response.ok) throw new Error('Location lookup failed');
+
+      const data = await response.json();
+      const city = data?.city || '';
+      const region = data?.region || data?.region_code || '';
+      const country = data?.country_name || data?.country || '';
+      const label = formatLabel(city, region, country);
+      if (label) {
+        setUserLocationLabel(label);
+      } else {
+        setUserLocationLabel('Location detected');
+      }
+    } catch {
+      setUserLocationLabel('Location detected');
+    }
+  }, []);
+
+  const requestUserLocation = useCallback(() => {
+    setUserLocationLabel('Detecting your city...');
+
+    if (!('geolocation' in navigator)) {
+      setUserLocation(null);
+      setUserLocationLabel('Location unavailable');
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const nextLocation = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        };
+        setUserLocation(nextLocation);
+        await resolveLocationLabel(nextLocation.lat, nextLocation.lng);
+      },
+      async () => {
+        try {
+          const response = await fetch('https://ipapi.co/json/');
+          if (!response.ok) throw new Error('Location lookup failed');
+
+          const data = await response.json();
+          if (data?.latitude != null && data?.longitude != null) {
+            const fallbackLocation = { lat: data.latitude, lng: data.longitude };
+            setUserLocation(fallbackLocation);
+            await resolveLocationLabel(fallbackLocation.lat, fallbackLocation.lng);
+          } else {
+            setUserLocation(null);
+            setUserLocationLabel('Location unavailable');
+          }
+        } catch {
+          setUserLocation(null);
+          setUserLocationLabel('Location unavailable');
+        }
+      },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 }
+    );
+  }, [resolveLocationLabel]);
+
   // On mount: Auto-detect user geolocation & restore session
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          });
-        },
-        () => {
-          setUserLocation({ lat: 12.9716, lng: 77.5946 });
-        },
-        { enableHighAccuracy: true, timeout: 5000 }
-      );
-    } else {
-      setUserLocation({ lat: 12.9716, lng: 77.5946 });
-    }
+    requestUserLocation();
 
     // Restore user session from persistent storage
     const savedUser = localStorage.getItem(STORAGE_KEY_USER);
@@ -375,6 +447,7 @@ export default function App() {
             <Hero
               clinics={publicClinics.slice(0, 5)}
               userLocation={userLocation}
+              userLocationLabel={userLocationLabel}
               onSelectClinic={(id) => { setSelectedClinicId(id); setActiveTab('find_vets'); }}
               onNavigateToFind={() => setActiveTab('find_vets')}
               onNavigateToEmergency={() => setActiveTab('emergency')}
