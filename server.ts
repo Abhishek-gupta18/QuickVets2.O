@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
+import crypto from 'crypto';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import bcrypt from 'bcryptjs';
@@ -79,10 +80,249 @@ function getISTDate(): string {
   return new Date().toISOString().split('T')[0];
 }
 
+function getFrontendUrl(req?: express.Request): string {
+  return (process.env.FRONTEND_URL || (req ? `${req.protocol}://${req.get('host')}` : '') || '').replace(/\/$/, '');
+}
+
+function getBackendUrl(req?: express.Request): string {
+  return (process.env.BACKEND_URL || (req ? `${req.protocol}://${req.get('host')}` : '') || '').replace(/\/$/, '');
+}
+
+function getGoogleOAuthRedirectUri(req: express.Request): string {
+  return process.env.GOOGLE_OAUTH_REDIRECT_URI || `${getBackendUrl(req)}/api/auth/google/callback`;
+}
+
+function parseCookieHeader(cookieHeader: string | undefined): Record<string, string> {
+  if (!cookieHeader) return {};
+  return cookieHeader.split(';').reduce((acc, entry) => {
+    const separatorIndex = entry.indexOf('=');
+    if (separatorIndex === -1) return acc;
+    const key = entry.slice(0, separatorIndex).trim();
+    const value = entry.slice(separatorIndex + 1).trim();
+    acc[key] = decodeURIComponent(value);
+    return acc;
+  }, {} as Record<string, string>);
+}
+
+function setGoogleOAuthCookie(res: express.Response, value: string) {
+  const cookieParts = [
+    `quickvet_google_oauth=${encodeURIComponent(value)}`,
+    'Path=/',
+    'HttpOnly',
+    'SameSite=Lax',
+    'Max-Age=600',
+  ];
+
+  if (process.env.NODE_ENV === 'production') {
+    cookieParts.push('Secure');
+  }
+
+  res.setHeader('Set-Cookie', cookieParts.join('; '));
+}
+
+function clearGoogleOAuthCookie(res: express.Response) {
+  res.setHeader('Set-Cookie', 'quickvet_google_oauth=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0');
+}
+
+function buildAuthRedirectUrl(baseUrl: string, params: Record<string, string>): string {
+  const url = new URL(baseUrl || '/');
+  Object.entries(params).forEach(([key, value]) => {
+    url.searchParams.set(key, value);
+  });
+  return url.toString();
+}
+
+function getDashboardForRole(role: string): string {
+  if (role === 'admin') return 'admin_dashboard';
+  if (role === 'veterinarian') return 'vet_dashboard';
+  return 'user_dashboard';
+}
+
+async function fetchGoogleProfile(code: string, redirectUri: string) {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+
+  if (!clientId || !clientSecret) {
+    throw new Error('Google OAuth is not configured.');
+  }
+
+  const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      code,
+      client_id: clientId,
+      client_secret: clientSecret,
+      redirect_uri: redirectUri,
+      grant_type: 'authorization_code',
+    }),
+  });
+
+  if (!tokenRes.ok) {
+    throw new Error('Failed to exchange Google authorization code.');
+  }
+
+  const tokenData = await tokenRes.json() as { access_token?: string };
+  if (!tokenData.access_token) {
+    throw new Error('Google access token missing from response.');
+  }
+
+  const profileRes = await fetch('https://openidconnect.googleapis.com/v1/userinfo', {
+    headers: { Authorization: `Bearer ${tokenData.access_token}` },
+  });
+
+  if (!profileRes.ok) {
+    throw new Error('Failed to read Google profile information.');
+  }
+
+  const profile = await profileRes.json() as {
+    sub?: string;
+    email?: string;
+    email_verified?: boolean;
+    name?: string;
+    picture?: string;
+  };
+
+  if (!profile.email || !profile.email_verified) {
+    throw new Error('Google account email is not verified.');
+  }
+
+  return profile;
+}
+
+async function upsertGoogleUser(profile: { email: string; name?: string; picture?: string }, requestedRole: string) {
+  const normalizedEmail = normalizeEmail(profile.email);
+  const [existingUser] = await db.select().from(users).where(eq(users.email, normalizedEmail)).limit(1);
+
+  if (existingUser) {
+    const updates: Record<string, string> = {};
+    if (!existingUser.avatarUrl && profile.picture) {
+      updates.avatarUrl = profile.picture;
+    }
+    if (!existingUser.name && profile.name) {
+      updates.name = profile.name;
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await db.update(users).set(updates).where(eq(users.id, existingUser.id));
+    }
+
+    return existingUser;
+  }
+
+  const id = `google-${crypto.randomBytes(8).toString('hex')}`;
+  const avatarUrl = profile.picture || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(profile.name || normalizedEmail)}`;
+  const passwordHash = `google-oauth:${crypto.randomBytes(32).toString('hex')}`;
+
+  const [newUser] = await db.insert(users).values({
+    id,
+    email: normalizedEmail,
+    passwordHash,
+    name: profile.name || normalizedEmail.split('@')[0] || 'QuickVet User',
+    role: requestedRole === 'veterinarian' ? 'veterinarian' : 'pet_owner',
+    phone: '',
+    avatarUrl,
+    clinicId: null,
+  }).returning();
+
+  return newUser;
+}
+
 
 // ========================
 // PUBLIC API ROUTES
 // ========================
+
+// AUTH: Google OAuth start
+app.get('/api/auth/google/start', async (req, res) => {
+  try {
+    const intent = req.query.intent === 'signup' ? 'signup' : 'login';
+    const role = req.query.role === 'veterinarian' ? 'veterinarian' : 'pet_owner';
+    const state = crypto.randomBytes(16).toString('hex');
+    const payload = JSON.stringify({ state, intent, role });
+
+    setGoogleOAuthCookie(res, payload);
+
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    if (!clientId) {
+      return res.status(500).send('Google OAuth is not configured on the server.');
+    }
+
+    const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+    authUrl.searchParams.set('client_id', clientId);
+    authUrl.searchParams.set('redirect_uri', getGoogleOAuthRedirectUri(req));
+    authUrl.searchParams.set('response_type', 'code');
+    authUrl.searchParams.set('scope', 'openid email profile');
+    authUrl.searchParams.set('state', state);
+    authUrl.searchParams.set('prompt', 'select_account');
+    authUrl.searchParams.set('include_granted_scopes', 'true');
+
+    return res.redirect(authUrl.toString());
+  } catch (err) {
+    console.error('Google OAuth start error:', err);
+    return res.status(500).send('Unable to start Google OAuth.');
+  }
+});
+
+// AUTH: Google OAuth callback
+app.get('/api/auth/google/callback', async (req, res) => {
+  const frontendUrl = getFrontendUrl(req) || '/';
+  const redirectWithError = (message: string) => {
+    res.redirect(buildAuthRedirectUrl(frontendUrl, { oauth_error: message }));
+  };
+
+  try {
+    const { code, state, error } = req.query as Record<string, string | undefined>;
+    if (error) {
+      clearGoogleOAuthCookie(res);
+      return redirectWithError(error);
+    }
+
+    if (!code || !state) {
+      clearGoogleOAuthCookie(res);
+      return redirectWithError('missing_code');
+    }
+
+    const cookies = parseCookieHeader(req.headers.cookie);
+    const oauthCookie = cookies.quickvet_google_oauth;
+    if (!oauthCookie) {
+      clearGoogleOAuthCookie(res);
+      return redirectWithError('missing_state');
+    }
+
+    const parsedCookie = JSON.parse(oauthCookie) as { state?: string; intent?: string; role?: string };
+    if (!parsedCookie.state || parsedCookie.state !== state) {
+      clearGoogleOAuthCookie(res);
+      return redirectWithError('state_mismatch');
+    }
+
+    const profile = await fetchGoogleProfile(code, getGoogleOAuthRedirectUri(req));
+    const user = await upsertGoogleUser(profile, parsedCookie.role || 'pet_owner');
+    const userResponse = await buildUserResponse(user.id);
+
+    if (!userResponse) {
+      clearGoogleOAuthCookie(res);
+      return redirectWithError('user_not_found');
+    }
+
+    const token = signToken(
+      { id: userResponse.id, email: userResponse.email, role: userResponse.role, clinicId: userResponse.clinicId || undefined },
+      getJwtSecret(),
+      getSessionExpiryForRole(userResponse.role)
+    );
+
+    clearGoogleOAuthCookie(res);
+    return res.redirect(buildAuthRedirectUrl(frontendUrl, {
+      oauth_token: token,
+      oauth_provider: 'google',
+      dashboard: getDashboardForRole(userResponse.role),
+    }));
+  } catch (err) {
+    clearGoogleOAuthCookie(res);
+    console.error('Google OAuth callback error:', err);
+    return redirectWithError('oauth_failed');
+  }
+});
 
 // AUTH: Sign Up
 app.post('/api/auth/signup', async (req, res) => {

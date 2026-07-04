@@ -26,6 +26,7 @@ export default function AuthModal({
   const [resetFinished, setResetFinished] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const apiBase = (import.meta as any).env?.VITE_API_URL || '';
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,6 +93,17 @@ export default function AuthModal({
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGoogleContinue = () => {
+    const googleUrl = new URL(`${apiBase}/api/auth/google/start`, window.location.origin);
+    googleUrl.searchParams.set('intent', type);
+
+    if (type === 'signup') {
+      googleUrl.searchParams.set('role', role);
+    }
+
+    window.location.assign(googleUrl.toString());
   };
 
   return (
@@ -323,6 +335,21 @@ export default function AuthModal({
               {loading 
                 ? 'Processing verification...' 
                 : type === 'login' ? 'Let me into QuickVet' : role === 'veterinarian' ? 'Continue to verification' : 'Unlock my companion account'}
+            </button>
+
+            <div className="flex items-center gap-3 py-2">
+              <div className="h-px flex-1 bg-slate-200" />
+              <span className="text-[11px] font-bold uppercase tracking-[0.25em] text-slate-400">Or</span>
+              <div className="h-px flex-1 bg-slate-200" />
+            </div>
+
+            <button
+              type="button"
+              onClick={handleGoogleContinue}
+              className="w-full py-3.5 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 active:scale-95 text-slate-700 font-bold rounded-2xl text-sm transition-all text-center cursor-pointer flex items-center justify-center gap-3"
+            >
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-slate-300 text-[11px] font-black text-slate-600">G</span>
+              {type === 'login' ? 'Continue with Google' : 'Continue signup with Google'}
             </button>
 
             {/* SWITCH TOGGLE */}

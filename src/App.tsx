@@ -194,7 +194,7 @@ export default function App() {
 
 
   // ===== Authentication Handlers =====
-  const handleAuthSuccess = (user: User, token: string) => {
+  const handleAuthSuccess = useCallback((user: User, token: string) => {
     setCurrentUser(user);
     setSessionToken(token);
     localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(user));
@@ -215,7 +215,53 @@ export default function App() {
 
     // Immediately refresh data with new credentials
     setTimeout(() => pullConfiguration(), 100);
-  };
+  }, [pullConfiguration]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const oauthToken = params.get('oauth_token');
+    const oauthError = params.get('oauth_error');
+
+    if (!oauthToken && !oauthError) {
+      return;
+    }
+
+    window.history.replaceState({}, document.title, window.location.pathname);
+
+    if (oauthError) {
+      setAuthModalType('login');
+      return;
+    }
+
+    const finishGoogleLogin = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/user/me`, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${oauthToken}`,
+          },
+        });
+
+        if (!res.ok) {
+          throw new Error('Google login could not be completed.');
+        }
+
+        const user = await safeJson<User>(res);
+        if (!user) {
+          throw new Error('Google login returned an invalid user profile.');
+        }
+
+        handleAuthSuccess(user, oauthToken);
+        setAuthModalType(null);
+      } catch (err) {
+        console.error('Google OAuth handoff error:', err);
+        handleForceLogout();
+        setAuthModalType('login');
+      }
+    };
+
+    void finishGoogleLogin();
+  }, [handleAuthSuccess, handleForceLogout]);
 
   const handleLogout = () => {
     handleForceLogout();
