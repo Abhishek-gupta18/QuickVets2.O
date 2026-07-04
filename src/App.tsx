@@ -976,14 +976,16 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* FOOTER */}
-      <Footer
-        onNavigate={setActiveTab}
-        onOpenAuth={(type) => {
-          setAuthModalType(type);
-          setActiveTab('home');
-        }}
-      />
+      {/* FOOTER — only shown on home page */}
+      {activeTab === 'home' && (
+        <Footer
+          onNavigate={setActiveTab}
+          onOpenAuth={(type) => {
+            setAuthModalType(type);
+            setActiveTab('home');
+          }}
+        />
+      )}
 
       {/* GLOBAL MODALS */}
       {authModalType && (
