@@ -10,7 +10,7 @@ import {
   clinicReviews, bookings, emergencyRequests,
 } from './src/server/schema.js';
 import { signToken } from './src/server/jwt.js';
-import { authenticateToken, requireRole } from './src/server/middleware.js';
+import { authenticateToken, optionalAuthenticateToken, requireRole } from './src/server/middleware.js';
 import { getAdminAnalytics, getUserAnalytics, getVetAnalytics } from './src/server/analytics.js';
 
 const app = express();
@@ -613,27 +613,43 @@ app.get('/api/emergency', authenticateToken, async (req: any, res: any) => {
   }
 });
 
-// EMERGENCY: Create (authenticated)
-app.post('/api/emergency', authenticateToken, async (req: any, res: any) => {
+// EMERGENCY: Create (works for guests and authenticated users)
+app.post('/api/emergency', optionalAuthenticateToken, async (req: any, res: any) => {
   try {
-    const { petName, petType, phone, address, description, latitude, longitude } = req.body;
+    const { petName, petType, phone, address, description, latitude, longitude, petOwnerName, petOwnerEmail } = req.body;
     if (!phone || !address || !description) {
       return res.status(400).json({ error: 'Emergency needs phone, address, and description.' });
     }
 
-    const [owner] = await db.select().from(users).where(eq(users.id, req.user.id)).limit(1);
-    const id = `emergency-${Date.now()}`;
+    const requesterId = req.user?.id || null;
+    const requesterEmail = typeof petOwnerEmail === 'string' && petOwnerEmail.trim()
+      ? petOwnerEmail.trim()
+      : req.user?.email || `guest-emergency-${Date.now()}@quickvet.in`;
+    const requesterName = typeof petOwnerName === 'string' && petOwnerName.trim()
+      ? petOwnerName.trim()
+      : req.user?.name || 'Emergency Guest User';
 
+    let owner: any = null;
+    if (requesterId) {
+      [owner] = await db.select().from(users).where(eq(users.id, requesterId)).limit(1);
+    }
+
+    const id = `emergency-${Date.now()}`;
     const [newEmergency] = await db.insert(emergencyRequests).values({
-      id, petOwnerId: req.user.id,
-      petOwnerName: owner?.name || 'Urgent Caller',
-      petOwnerEmail: req.user.email,
-      petName: petName || 'Unknown Pet', petType: petType || 'Dog',
-      phone, address, description,
+      id,
+      petOwnerId: requesterId,
+      petOwnerName: owner?.name || requesterName,
+      petOwnerEmail: requesterEmail,
+      petName: petName || 'Unknown Pet',
+      petType: petType || 'Dog',
+      phone,
+      address,
+      description,
       latitude: parseFloat(latitude) || 12.9716,
       longitude: parseFloat(longitude) || 77.5946,
-      status: 'pending',
-      requestDate: getISTDate(), requestTime: getISTTime(),
+      status: requesterId ? 'pending' : 'notified',
+      requestDate: getISTDate(),
+      requestTime: getISTTime(),
     }).returning();
 
     res.status(201).json({
