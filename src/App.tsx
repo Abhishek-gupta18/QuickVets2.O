@@ -405,11 +405,33 @@ export default function App() {
 
   // ===== Vet Registration =====
   const handleSubmitVetRegistration = async (registrationPayload: any) => {
+    if (!currentUser || !sessionToken) {
+      setAuthModalType('signup');
+      throw new Error('Please sign in as a veterinarian before submitting verification.');
+    }
+
+    if (!['veterinarian', 'admin'].includes(currentUser.role)) {
+      setAuthModalType('signup');
+      throw new Error('Only veterinarian accounts can submit clinic verification.');
+    }
+
     const res = await authFetch('/api/clinics', {
       method: 'POST',
       body: JSON.stringify(registrationPayload),
     });
-    if (!res.ok) throw new Error('Registration failed');
+
+    if (res.status === 401 || res.status === 403) {
+      handleForceLogout();
+      setAuthModalType('login');
+      const data = await safeJson(res);
+      throw new Error(data?.error || 'Your session is no longer valid. Please sign in again.');
+    }
+
+    if (!res.ok) {
+      const data = await safeJson(res);
+      throw new Error(data?.error || 'Registration failed. Please try again.');
+    }
+
     const createdClinic = await safeJson(res);
     await pullConfiguration();
 

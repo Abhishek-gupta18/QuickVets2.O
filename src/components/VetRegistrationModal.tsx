@@ -201,7 +201,8 @@ export default function VetRegistrationModal({
         colors: ['#58B368', '#BFE7C4', '#4CAF50'],
       });
     } catch (err) {
-      alert('Clinic registration failed. Check container database logs.');
+      const message = err instanceof Error ? err.message : 'Clinic registration failed.';
+      alert(message);
     } finally {
       setLoading(false);
     }
