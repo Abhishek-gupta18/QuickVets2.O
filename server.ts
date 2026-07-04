@@ -216,7 +216,7 @@ app.post('/api/auth/reset-password', async (req, res) => {
 // AUTH: Google OAuth - Sign in or Sign up with Google ID Token
 app.post('/api/auth/google', async (req, res) => {
   try {
-    const { credential, role } = req.body;
+    const { credential, role, isSignup } = req.body;
     if (!credential) {
       return res.status(400).json({ error: 'Google credential token is required.' });
     }
@@ -249,19 +249,18 @@ app.post('/api/auth/google', async (req, res) => {
     const googleName = googlePayload.name || normalizedEmail.split('@')[0];
     const googleAvatar = googlePayload.picture || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(googleName)}`;
 
-    const requestedRole = (role && ['pet_owner', 'veterinarian'].includes(role)) ? role : 'pet_owner';
+    // Only honour role for brand-new signups — logins always use stored DB role
+    const requestedRole = (isSignup && role && ['pet_owner', 'veterinarian'].includes(role)) ? role : 'pet_owner';
 
     // Check if user already exists
     const [existingUser] = await db.select().from(users).where(eq(users.email, normalizedEmail)).limit(1);
 
     if (existingUser) {
-      let effectiveRole = existingUser.role;
-      if (role && ['pet_owner', 'veterinarian'].includes(role) && existingUser.role !== requestedRole) {
-        await db.update(users).set({ role: requestedRole }).where(eq(users.id, existingUser.id));
-        effectiveRole = requestedRole;
-      }
+      // IMPORTANT: On login, ALWAYS use the user's stored role — never overwrite it.
+      // Role changes must go through a dedicated settings flow, not the login flow.
+      const effectiveRole = existingUser.role;
 
-      // Existing user — log them in
+      // Existing user — log them in with their stored role
       const token = signToken(
         { id: existingUser.id, email: normalizedEmail, role: effectiveRole, clinicId: existingUser.clinicId || undefined },
         getJwtSecret(),
@@ -271,7 +270,7 @@ app.post('/api/auth/google', async (req, res) => {
       return res.json({ user: userResponse, token });
     }
 
-    // New user — create account (default role: pet_owner unless specified)
+    // New user — create account with role from signup form (defaults to pet_owner)
     const userRole = requestedRole;
     const id = `user-${Date.now()}`;
     // Generate a random password hash (user won't use password login via Google)

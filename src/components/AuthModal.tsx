@@ -72,6 +72,7 @@ export default function AuthModal({
         body: JSON.stringify({
           credential: response.credential,
           role: type === 'signup' ? role : undefined,
+          isSignup: type === 'signup',
         }),
       });
 
