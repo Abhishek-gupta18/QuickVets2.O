@@ -2,9 +2,10 @@ import { PawPrint, Facebook, Twitter, Instagram, ChevronRight } from 'lucide-rea
 
 interface FooterProps {
   onNavigate: (tab: string) => void;
+  onOpenAuth: (type: 'login' | 'signup') => void;
 }
 
-export default function Footer({ onNavigate }: FooterProps) {
+export default function Footer({ onNavigate, onOpenAuth }: FooterProps) {
   return (
     <footer className="bg-slate-900 text-slate-300 pt-16 pb-12 border-t border-slate-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -84,7 +85,7 @@ export default function Footer({ onNavigate }: FooterProps) {
               Are you operating a registered, licensed veterinary clinical station in India? Plunge into our live network today.
             </p>
             <button
-              onClick={() => onNavigate('vet_register')}
+              onClick={() => onOpenAuth('signup')}
               className="w-full text-center py-2.5 bg-green-600 hover:bg-[#4CAF50] text-white font-extrabold text-xs rounded-xl shadow-md transition-colors cursor-pointer"
             >
               Register Your Clinic Station

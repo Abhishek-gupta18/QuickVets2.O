@@ -674,7 +674,10 @@ export default function App() {
                 <h3 className="font-display font-black text-2xl sm:text-3xl tracking-normal">Are You a Practicing Veterinarian?</h3>
                 <p className="text-white/80 text-xs sm:text-sm max-w-xl mx-auto leading-relaxed">Join our verified directory network. Put your animal hospital or private consultancy on the interactive maps.</p>
                 <div className="pt-2">
-                  <button onClick={() => setActiveTab('vet_register')}
+                  <button onClick={() => {
+                    setAuthModalType('signup');
+                    setActiveTab('home');
+                  }}
                     className="px-8 py-3.5 bg-white text-green-700 font-extrabold rounded-2xl shadow-lg active:scale-95 transition-all text-sm cursor-pointer select-none">
                     Register Your Clinic Station
                   </button>
@@ -893,7 +896,13 @@ export default function App() {
       </AnimatePresence>
 
       {/* FOOTER */}
-      <Footer onNavigate={setActiveTab} />
+      <Footer
+        onNavigate={setActiveTab}
+        onOpenAuth={(type) => {
+          setAuthModalType(type);
+          setActiveTab('home');
+        }}
+      />
 
       {/* GLOBAL MODALS */}
       {authModalType && (
