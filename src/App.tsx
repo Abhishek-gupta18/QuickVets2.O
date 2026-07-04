@@ -81,6 +81,7 @@ export default function App() {
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [userLocationLabel, setUserLocationLabel] = useState<string | null>(null);
+  const [userCityName, setUserCityName] = useState<string>('your area');
 
   // Database lists fetched from Express
   const [clinics, setClinics] = useState<VetClinic[]>([]);
@@ -135,6 +136,7 @@ export default function App() {
         const label = formatLabel(city, state, country);
         if (label) {
           setUserLocationLabel(label);
+          setUserCityName(city || state || country || 'your area');
           return;
         }
       }
@@ -153,11 +155,14 @@ export default function App() {
       const label = formatLabel(city, region, country);
       if (label) {
         setUserLocationLabel(label);
+        setUserCityName(city || region || country || 'your area');
       } else {
         setUserLocationLabel('Location detected');
+        setUserCityName('your area');
       }
     } catch {
       setUserLocationLabel('Location detected');
+      setUserCityName('your area');
     }
   }, []);
 
@@ -167,6 +172,7 @@ export default function App() {
     if (!('geolocation' in navigator)) {
       setUserLocation(null);
       setUserLocationLabel('Location unavailable');
+      setUserCityName('your area');
       return;
     }
 
@@ -192,10 +198,12 @@ export default function App() {
           } else {
             setUserLocation(null);
             setUserLocationLabel('Location unavailable');
+            setUserCityName('your area');
           }
         } catch {
           setUserLocation(null);
           setUserLocationLabel('Location unavailable');
+          setUserCityName('your area');
         }
       },
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 }
@@ -412,20 +420,30 @@ export default function App() {
 
   // ===== Clinic Filtering Logic =====
   const publicClinics = clinics.filter((clinic) => clinic.verificationStatus === 'approved');
-  const filteredClinics = publicClinics.filter((clinic) => {
-    if (searchName && !clinic.name.toLowerCase().includes(searchName.toLowerCase())) return false;
-    if (searchArea && !clinic.area.toLowerCase().includes(searchArea.toLowerCase())) return false;
-    if (filterOpenNow && !clinic.isOpenNow) return false;
-    if (filterEmergency && !clinic.hasEmergency) return false;
-    if (filterHomeVisit && !clinic.hasHomeVisit) return false;
-    if (filterHighestRated && clinic.rating < 4.6) return false;
-    if (filterSpecialist !== 'All' && !clinic.specialists.includes(filterSpecialist as any)) return false;
-    if (userLocation) {
-      const dist = calculateHaversineDistance(userLocation.lat, userLocation.lng, clinic.latitude, clinic.longitude);
-      if (dist > searchRadius) return false;
-    }
-    return true;
-  });
+  const areaFilterLabel = userCityName && userCityName !== 'your area' ? `All Areas (${userCityName})` : 'All Areas (Your Location)';
+  const filteredClinics = publicClinics
+    .filter((clinic) => {
+      if (searchName && !clinic.name.toLowerCase().includes(searchName.toLowerCase())) return false;
+      if (searchArea && !clinic.area.toLowerCase().includes(searchArea.toLowerCase())) return false;
+      if (filterOpenNow && !clinic.isOpenNow) return false;
+      if (filterEmergency && !clinic.hasEmergency) return false;
+      if (filterHomeVisit && !clinic.hasHomeVisit) return false;
+      if (filterHighestRated && clinic.rating < 4.6) return false;
+      if (filterSpecialist !== 'All' && !clinic.specialists.includes(filterSpecialist as any)) return false;
+      if (userLocation) {
+        const dist = calculateHaversineDistance(userLocation.lat, userLocation.lng, clinic.latitude, clinic.longitude);
+        if (dist > searchRadius) return false;
+      }
+      return true;
+    })
+    .map((clinic) => ({
+      clinic,
+      distance: userLocation
+        ? calculateHaversineDistance(userLocation.lat, userLocation.lng, clinic.latitude, clinic.longitude)
+        : Number.POSITIVE_INFINITY,
+    }))
+    .sort((a, b) => a.distance - b.distance)
+    .map(({ clinic }) => clinic);
 
 
   // ===== RENDER =====
@@ -473,13 +491,8 @@ export default function App() {
                       <MapPin className="absolute left-3.5 top-3.5 w-4.5 h-4.5 text-[#58B368]" />
                       <select value={searchArea} onChange={(e) => setSearchArea(e.target.value)}
                         className="w-full bg-slate-50 p-3.5 pl-11 border border-slate-100 rounded-2xl text-xs sm:text-sm focus:outline-none focus:border-[#58B368] shadow-sm h-[48px] font-semibold text-gray-800">
-                        <option value="">All Areas (Bengaluru)</option>
-                        <option value="Indiranagar">Indiranagar</option>
-                        <option value="Domlur">Domlur</option>
-                        <option value="Koramangala">Koramangala</option>
-                        <option value="Whitefield">Whitefield</option>
-                        <option value="JP Nagar">JP Nagar</option>
-                        <option value="Hebbal">Hebbal</option>
+                        <option value="">{areaFilterLabel}</option>
+                        
                       </select>
                     </div>
                     <div className="bg-slate-50 p-2.5 px-4.5 border border-slate-100 rounded-2xl shadow-sm text-left flex flex-col justify-center">

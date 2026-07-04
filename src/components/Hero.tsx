@@ -78,7 +78,7 @@ export default function Hero({
             </div>
             
             <p className="text-xs text-gray-400 font-medium pl-1">
-              Supports location auto-detection in Bangalore and regional cities.
+              Supports live location detection for your current city and nearby areas.
             </p>
           </div>
 
