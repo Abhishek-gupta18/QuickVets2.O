@@ -31,6 +31,7 @@ export default function Navbar({
     { id: 'home', label: 'Home' },
     { id: 'find_vets', label: 'Find Vets' },
     { id: 'emergency', label: 'Emergency' },
+    { id: 'vaccinations', label: 'Vaccinations' },
     { id: 'reviews', label: 'Pet Parents Community' },
   ];
 

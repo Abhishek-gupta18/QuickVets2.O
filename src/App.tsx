@@ -17,6 +17,7 @@ import AdminDashboard from './components/AdminDashboard';
 import VetRegistrationModal from './components/VetRegistrationModal';
 import AuthModal from './components/AuthModal';
 import Footer from './components/Footer';
+import VaccinationGuide from './components/VaccinationGuide';
 import { VetClinic, Booking, EmergencyRequest, User, ClinicReview } from './types';
 import { calculateHaversineDistance } from './data';
 import { motion, AnimatePresence } from 'motion/react';
@@ -581,6 +582,13 @@ export default function App() {
                 setActiveTab('find_vets');
               }}
             />
+          </motion.div>
+        )}
+
+        {/* VIEW: VACCINATION GUIDE */}
+        {activeTab === 'vaccinations' && (
+          <motion.div key="vaccinations" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-grow">
+            <VaccinationGuide />
           </motion.div>
         )}
 
