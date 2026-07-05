@@ -1,6 +1,7 @@
+import { useState, useEffect } from 'react';
 import { ShieldCheck, HeartPulse, Home, Users, Star, Clock, MapPin, CheckCircle2, ArrowRight, Stethoscope, Phone, BadgeCheck } from 'lucide-react';
 import { VetClinic } from '../types';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface HeroProps {
   clinics: VetClinic[];
@@ -22,15 +23,48 @@ export default function Hero({
   const verifiedClinics = clinics.filter(c => c.verificationStatus === 'approved');
   const featuredVets = clinics.slice(0, 3);
 
+  const slideshowImages = [
+    "https://images.unsplash.com/photo-1628009368231-7bb7cfcb0def?auto=format&fit=crop&q=80&w=1600",
+    "/hero-vet-dog.jpg",
+    "/hero-vet-puppy-kitten.jpg"
+  ];
+
+  const [bgIndex, setBgIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setBgIndex((prev) => (prev + 1) % slideshowImages.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <div className="overflow-hidden">
       {/* ===== HERO SECTION ===== */}
-      <section className="relative min-h-[92vh] flex items-center bg-gradient-to-br from-[#F4FBF3] via-white to-[#e8f5e9] overflow-hidden">
-        {/* Decorative blobs */}
-        <div className="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] rounded-full bg-green-100/40 blur-[100px] pointer-events-none" />
-        <div className="absolute bottom-[-10%] left-[-5%] w-[400px] h-[400px] rounded-full bg-emerald-100/30 blur-[80px] pointer-events-none" />
+      <section className="relative min-h-[92vh] flex items-center overflow-hidden">
+        {/* Full-Width Background Image & Overlay */}
+        <div className="absolute inset-0 z-0">
+          <AnimatePresence mode="popLayout">
+            <motion.img
+              key={bgIndex}
+              src={slideshowImages[bgIndex]}
+              alt="Veterinarian background"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.8 }}
+              className="absolute inset-0 w-full h-full object-cover object-[80%_center] lg:object-center"
+            />
+          </AnimatePresence>
+          {/* Subtle responsive gradient to ensure high text contrast, fading out sooner to keep the background image fully visible on the right */}
+          <div className="absolute inset-0 bg-gradient-to-r from-[#F4FBF3] via-[#F4FBF3]/85 to-transparent z-10" />
+        </div>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full py-16 lg:py-0">
+        {/* Decorative blobs */}
+        <div className="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] rounded-full bg-green-100/25 blur-[100px] pointer-events-none z-0" />
+        <div className="absolute bottom-[-10%] left-[-5%] w-[400px] h-[400px] rounded-full bg-emerald-100/20 blur-[80px] pointer-events-none z-0" />
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full py-16 lg:py-0 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
             {/* Left: Copy */}
             <motion.div
@@ -93,28 +127,19 @@ export default function Hero({
               </div>
             </motion.div>
 
-            {/* Right: Image + floating cards */}
+            {/* Right: Floating cards only (image is full background) */}
             <motion.div
               initial={{ opacity: 0, scale: 0.95, x: 20 }}
               animate={{ opacity: 1, scale: 1, x: 0 }}
               transition={{ duration: 0.9, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
-              className="relative hidden lg:block"
+              className="relative hidden lg:block h-[560px]"
             >
-              <div className="relative w-full h-[560px] rounded-[32px] overflow-hidden shadow-2xl">
-                <img
-                  src="https://images.unsplash.com/photo-1628009368231-7bb7cfcb0def?auto=format&fit=crop&q=80&w=800"
-                  alt="Veterinarian caring for a dog"
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
-              </div>
-
               {/* Floating cards */}
               <motion.div
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4, duration: 0.6 }}
-                className="absolute top-6 -left-6 bg-white/95 backdrop-blur-md p-4 rounded-2xl border border-green-100 shadow-xl flex items-center gap-3 animate-[float_3s_ease-in-out_infinite]"
+                className="absolute top-12 left-16 bg-white/95 backdrop-blur-md p-4 rounded-2xl border border-green-100 shadow-xl flex items-center gap-3 animate-[float_3s_ease-in-out_infinite]"
               >
                 <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
                   <BadgeCheck className="w-5 h-5 text-green-600" />
@@ -129,7 +154,7 @@ export default function Hero({
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5, duration: 0.6 }}
-                className="absolute bottom-8 -left-4 bg-white/95 backdrop-blur-md p-4 rounded-2xl border border-green-100 shadow-xl flex items-center gap-3 animate-[float_3s_ease-in-out_infinite_0.5s]"
+                className="absolute bottom-16 left-24 bg-white/95 backdrop-blur-md p-4 rounded-2xl border border-green-100 shadow-xl flex items-center gap-3 animate-[float_3s_ease-in-out_infinite_0.5s]"
               >
                 <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center">
                   <HeartPulse className="w-5 h-5 text-rose-500" />
