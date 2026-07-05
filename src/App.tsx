@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   Search, MapPin, SlidersHorizontal, Star, 
   Sparkles, ShieldAlert, Heart, CalendarDays, ClipboardList
@@ -547,8 +547,32 @@ export default function App() {
           <motion.div key="find_vets" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="flex-grow">
             <div className="flex flex-col lg:flex-row h-[calc(100vh-80px)]">
-              {/* LEFT: Filter Sidebar + Clinic Cards */}
-              <div className="lg:w-[440px] xl:w-[480px] flex-shrink-0 flex flex-col border-r border-slate-100 bg-white overflow-hidden">
+              {/* LEFT: Full Map */}
+              <div className="flex-1 relative min-h-[400px] lg:min-h-0 order-2 lg:order-1">
+                <InteractiveMap clinics={filteredClinics} selectedClinicId={selectedClinicId} onSelectClinic={setSelectedClinicId}
+                  userLocation={userLocation} searchRadius={searchRadius} navigatingToClinicId={navigatingToClinicId} />
+
+                {/* Floating map stats */}
+                <div className="absolute top-4 left-4 z-[999] bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-green-100 shadow-lg flex items-center gap-4 pointer-events-none">
+                  <div className="text-center">
+                    <span className="block text-sm font-black text-slate-900">{filteredClinics.length}</span>
+                    <span className="text-[9px] text-slate-400 font-bold uppercase">Clinics</span>
+                  </div>
+                  <div className="w-px h-7 bg-slate-200" />
+                  <div className="text-center">
+                    <span className="block text-sm font-black text-green-600">{filteredClinics.filter(c => c.isOpenNow).length}</span>
+                    <span className="text-[9px] text-slate-400 font-bold uppercase">Open Now</span>
+                  </div>
+                  <div className="w-px h-7 bg-slate-200" />
+                  <div className="text-center">
+                    <span className="block text-sm font-black text-rose-500">{filteredClinics.filter(c => c.hasEmergency).length}</span>
+                    <span className="text-[9px] text-slate-400 font-bold uppercase">Emergency</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* RIGHT: Filter Sidebar + Clinic Cards */}
+              <div className="lg:w-[440px] xl:w-[480px] flex-shrink-0 flex flex-col border-l border-slate-100 bg-white overflow-hidden order-1 lg:order-2">
                 {/* Search + Stats Bar */}
                 <div className="p-4 border-b border-slate-100 space-y-3">
                   <div className="relative">
@@ -699,30 +723,6 @@ export default function App() {
                   )}
                 </div>
               </div>
-
-              {/* RIGHT: Full Map */}
-              <div className="flex-1 relative min-h-[400px] lg:min-h-0">
-                <InteractiveMap clinics={filteredClinics} selectedClinicId={selectedClinicId} onSelectClinic={setSelectedClinicId}
-                  userLocation={userLocation} searchRadius={searchRadius} navigatingToClinicId={navigatingToClinicId} />
-
-                {/* Floating map stats */}
-                <div className="absolute top-4 left-4 z-[999] bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-green-100 shadow-lg flex items-center gap-4 pointer-events-none">
-                  <div className="text-center">
-                    <span className="block text-sm font-black text-slate-900">{filteredClinics.length}</span>
-                    <span className="text-[9px] text-slate-400 font-bold uppercase">Clinics</span>
-                  </div>
-                  <div className="w-px h-7 bg-slate-200" />
-                  <div className="text-center">
-                    <span className="block text-sm font-black text-green-600">{filteredClinics.filter(c => c.isOpenNow).length}</span>
-                    <span className="text-[9px] text-slate-400 font-bold uppercase">Open Now</span>
-                  </div>
-                  <div className="w-px h-7 bg-slate-200" />
-                  <div className="text-center">
-                    <span className="block text-sm font-black text-rose-500">{filteredClinics.filter(c => c.hasEmergency).length}</span>
-                    <span className="text-[9px] text-slate-400 font-bold uppercase">Emergency</span>
-                  </div>
-                </div>
-              </div>
             </div>
           </motion.div>
         )}
@@ -731,7 +731,7 @@ export default function App() {
         {/* VIEW 3: EMERGENCY */}
         {activeTab === 'emergency' && (
           <motion.div key="emergency" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            className="flex-grow w-full">
             <EmergencyWidget currentUser={currentUser} onOpenAuth={(type) => setAuthModalType(type)} />
           </motion.div>
         )}
