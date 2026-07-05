@@ -1,5 +1,6 @@
 import { ShieldCheck, HeartPulse, Home, Users, Star, Clock, MapPin, CheckCircle2, ArrowRight, Stethoscope, Phone, BadgeCheck } from 'lucide-react';
 import { VetClinic } from '../types';
+import { motion } from 'motion/react';
 
 interface HeroProps {
   clinics: VetClinic[];
@@ -32,14 +33,19 @@ export default function Hero({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full py-16 lg:py-0">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
             {/* Left: Copy */}
-            <div className="space-y-8 text-left relative z-10">
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+              className="space-y-8 text-left relative z-10"
+            >
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/80 backdrop-blur border border-green-100 shadow-sm">
                 <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                 <span className="text-xs font-bold text-slate-600">Trusted by 10,000+ pet parents across India</span>
               </div>
 
               <h1 className="font-display font-black text-5xl sm:text-6xl lg:text-[64px] text-gray-900 tracking-tight leading-[1.05]">
-                Premium <span className="text-[#58B368]">Veterinary Care</span> at Your Fingertips
+                Premium <span className="text-shimmer">Veterinary Care</span> at Your Fingertips
               </h1>
 
               <p className="text-gray-500 text-lg sm:text-xl max-w-lg leading-relaxed">
@@ -48,20 +54,24 @@ export default function Hero({
 
               {/* CTAs */}
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.03, y: -2 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={onNavigateToFind}
                   className="group px-8 py-4 bg-[#58B368] hover:bg-green-600 text-white font-extrabold rounded-2xl shadow-lg shadow-green-200/50 hover:shadow-xl hover:shadow-green-200/60 transition-all text-center cursor-pointer text-base flex items-center justify-center gap-2"
                 >
                   Find a Veterinarian
                   <ArrowRight className="w-4.5 h-4.5 group-hover:translate-x-1 transition-transform" />
-                </button>
-                <button
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.03, y: -2 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={onNavigateToEmergency}
                   className="px-8 py-4 bg-white hover:bg-slate-50 text-slate-700 font-bold rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all text-center cursor-pointer text-base flex items-center justify-center gap-2"
                 >
                   <HeartPulse className="w-5 h-5 text-rose-500" />
                   Emergency Help
-                </button>
+                </motion.button>
               </div>
 
               {/* Trust indicators */}
@@ -81,10 +91,15 @@ export default function Hero({
                   <span className="text-[11px] text-slate-400">from 2,400+ reviews</span>
                 </div>
               </div>
-            </div>
+            </motion.div>
 
             {/* Right: Image + floating cards */}
-            <div className="relative hidden lg:block">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, x: 20 }}
+              animate={{ opacity: 1, scale: 1, x: 0 }}
+              transition={{ duration: 0.9, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
+              className="relative hidden lg:block"
+            >
               <div className="relative w-full h-[560px] rounded-[32px] overflow-hidden shadow-2xl">
                 <img
                   src="https://images.unsplash.com/photo-1628009368231-7bb7cfcb0def?auto=format&fit=crop&q=80&w=800"
@@ -95,7 +110,12 @@ export default function Hero({
               </div>
 
               {/* Floating cards */}
-              <div className="absolute top-6 -left-6 bg-white/95 backdrop-blur-md p-4 rounded-2xl border border-green-100 shadow-xl flex items-center gap-3 animate-[float_3s_ease-in-out_infinite]">
+              <motion.div
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4, duration: 0.6 }}
+                className="absolute top-6 -left-6 bg-white/95 backdrop-blur-md p-4 rounded-2xl border border-green-100 shadow-xl flex items-center gap-3 animate-[float_3s_ease-in-out_infinite]"
+              >
                 <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
                   <BadgeCheck className="w-5 h-5 text-green-600" />
                 </div>
@@ -103,9 +123,14 @@ export default function Hero({
                   <span className="block text-sm font-black text-gray-800">500+ Verified</span>
                   <span className="text-[10px] text-gray-500">Licensed Veterinarians</span>
                 </div>
-              </div>
+              </motion.div>
 
-              <div className="absolute bottom-8 -left-4 bg-white/95 backdrop-blur-md p-4 rounded-2xl border border-green-100 shadow-xl flex items-center gap-3 animate-[float_3s_ease-in-out_infinite_0.5s]">
+              <motion.div
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5, duration: 0.6 }}
+                className="absolute bottom-8 -left-4 bg-white/95 backdrop-blur-md p-4 rounded-2xl border border-green-100 shadow-xl flex items-center gap-3 animate-[float_3s_ease-in-out_infinite_0.5s]"
+              >
                 <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center">
                   <HeartPulse className="w-5 h-5 text-rose-500" />
                 </div>
@@ -113,9 +138,14 @@ export default function Hero({
                   <span className="block text-sm font-black text-gray-800">&lt;15 min</span>
                   <span className="text-[10px] text-gray-500">Emergency Response</span>
                 </div>
-              </div>
+              </motion.div>
 
-              <div className="absolute top-1/2 -right-4 bg-white/95 backdrop-blur-md p-4 rounded-2xl border border-green-100 shadow-xl flex items-center gap-3 animate-[float_3s_ease-in-out_infinite_1s]">
+              <motion.div
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6, duration: 0.6 }}
+                className="absolute top-1/2 -right-4 bg-white/95 backdrop-blur-md p-4 rounded-2xl border border-green-100 shadow-xl flex items-center gap-3 animate-[float_3s_ease-in-out_infinite_1s]"
+              >
                 <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
                   <Clock className="w-5 h-5 text-blue-600" />
                 </div>
@@ -123,8 +153,8 @@ export default function Hero({
                   <span className="block text-sm font-black text-gray-800">24/7 Open</span>
                   <span className="text-[10px] text-gray-500">Always Available</span>
                 </div>
-              </div>
-            </div>
+              </motion.div>
+            </motion.div>
           </div>
         </div>
       </section>
@@ -132,7 +162,15 @@ export default function Hero({
       {/* ===== TRUST STATS ===== */}
       <section className="py-20 bg-white border-t border-slate-100">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-100px" }}
+            variants={{
+              visible: { transition: { staggerChildren: 0.1 } }
+            }}
+            className="grid grid-cols-2 lg:grid-cols-4 gap-6"
+          >
             {[
               { value: '500+', label: 'Verified Clinics', icon: ShieldCheck, color: 'text-green-600 bg-green-50' },
               { value: '10,000+', label: 'Pets Treated', icon: HeartPulse, color: 'text-rose-500 bg-rose-50' },
@@ -141,23 +179,37 @@ export default function Hero({
             ].map((stat) => {
               const Icon = stat.icon;
               return (
-                <div key={stat.label} className="text-center p-6 rounded-3xl border border-slate-100 bg-white shadow-sm hover:shadow-md transition-shadow">
+                <motion.div
+                  key={stat.label}
+                  variants={{
+                    hidden: { opacity: 0, y: 20 },
+                    visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 100 } }
+                  }}
+                  whileHover={{ y: -4, boxShadow: "0 12px 30px rgba(0,0,0,0.04)" }}
+                  className="text-center p-6 rounded-3xl border border-slate-100 bg-white shadow-sm hover:shadow-md transition-all duration-300"
+                >
                   <div className={`w-12 h-12 rounded-2xl ${stat.color} flex items-center justify-center mx-auto mb-4`}>
                     <Icon className="w-6 h-6" />
                   </div>
                   <span className="block font-display font-black text-3xl text-slate-900">{stat.value}</span>
                   <span className="text-sm text-slate-500 font-medium">{stat.label}</span>
-                </div>
+                </motion.div>
               );
             })}
-          </div>
+          </motion.div>
         </div>
       </section>
 
       {/* ===== WHY CHOOSE QUICKVET ===== */}
       <section className="py-24 bg-[#F4FBF3]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto mb-16">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-100px" }}
+            transition={{ duration: 0.6 }}
+            className="text-center max-w-2xl mx-auto mb-16"
+          >
             <span className="text-xs font-bold uppercase tracking-widest text-[#58B368]">Why QuickVet</span>
             <h2 className="font-display font-black text-4xl text-gray-900 tracking-tight mt-3">
               Everything Your Pet Needs, In One Place
@@ -165,15 +217,31 @@ export default function Hero({
             <p className="text-gray-500 text-base mt-4 leading-relaxed">
               From routine checkups to critical emergencies, QuickVet connects you with trusted professionals who care.
             </p>
-          </div>
+          </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-100px" }}
+            variants={{
+              visible: { transition: { staggerChildren: 0.12 } }
+            }}
+            className="grid grid-cols-1 md:grid-cols-3 gap-8"
+          >
             {[
               { icon: '🏥', title: 'Verified Clinics', desc: 'Every veterinarian on our platform is license-verified, background-checked, and rated by real pet parents.', img: 'photo-1584132967334-10e028bd69f7' },
               { icon: '🚑', title: '24/7 Emergency Care', desc: 'One tap sends an SOS to nearby emergency-ready clinics. Get help within 15 minutes, any time of day.', img: 'photo-1612531386530-97d3f79d6043' },
               { icon: '🏠', title: 'Home Visit Booking', desc: 'Skip the clinic queue. Book certified vets for at-home vaccinations, checkups, and routine care.', img: 'photo-1587300003388-59208cc962cb' },
             ].map((item, idx) => (
-              <div key={idx} className="group bg-white rounded-3xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+              <motion.div
+                key={idx}
+                variants={{
+                  hidden: { opacity: 0, y: 30 },
+                  visible: { opacity: 1, y: 0, transition: { duration: 0.5 } }
+                }}
+                whileHover={{ y: -6 }}
+                className="group bg-white rounded-3xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-xl transition-all duration-300"
+              >
                 <div className="h-48 overflow-hidden">
                   <img
                     src={`https://images.unsplash.com/${item.img}?auto=format&fit=crop&q=80&w=600`}
@@ -186,16 +254,22 @@ export default function Hero({
                   <h3 className="font-display font-black text-lg text-slate-900">{item.title}</h3>
                   <p className="text-sm text-slate-500 leading-relaxed">{item.desc}</p>
                 </div>
-              </div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         </div>
       </section>
 
       {/* ===== FEATURED VETERINARIANS ===== */}
       <section className="py-24 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-12">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-100px" }}
+            transition={{ duration: 0.6 }}
+            className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-12"
+          >
             <div>
               <span className="text-xs font-bold uppercase tracking-widest text-[#58B368]">Featured</span>
               <h2 className="font-display font-black text-4xl text-gray-900 tracking-tight mt-2">Top-Rated Veterinarians</h2>
@@ -207,11 +281,27 @@ export default function Hero({
             >
               View All <ArrowRight className="w-4 h-4" />
             </button>
-          </div>
+          </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-100px" }}
+            variants={{
+              visible: { transition: { staggerChildren: 0.1 } }
+            }}
+            className="grid grid-cols-1 md:grid-cols-3 gap-6"
+          >
             {featuredVets.map((vet) => (
-              <div key={vet.id} className="group bg-white rounded-3xl border border-slate-100 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+              <motion.div
+                key={vet.id}
+                variants={{
+                  hidden: { opacity: 0, y: 30 },
+                  visible: { opacity: 1, y: 0, transition: { duration: 0.5 } }
+                }}
+                whileHover={{ y: -6 }}
+                className="group bg-white rounded-3xl border border-slate-100 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300"
+              >
                 <div className="relative h-44 overflow-hidden">
                   <img
                     src={vet.imageUrl || 'https://images.unsplash.com/photo-1584132967334-10e028bd69f7?auto=format&fit=crop&q=80&w=600'}
@@ -246,21 +336,36 @@ export default function Hero({
                     View & Book
                   </button>
                 </div>
-              </div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         </div>
       </section>
 
       {/* ===== HOW IT WORKS ===== */}
       <section className="py-24 bg-[#F4FBF3] border-t border-green-100/50">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <span className="text-xs font-bold uppercase tracking-widest text-[#58B368]">Simple Process</span>
-          <h2 className="font-display font-black text-4xl text-gray-900 tracking-tight mt-3 mb-16">
-            How QuickVet Works
-          </h2>
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-100px" }}
+            transition={{ duration: 0.6 }}
+          >
+            <span className="text-xs font-bold uppercase tracking-widest text-[#58B368]">Simple Process</span>
+            <h2 className="font-display font-black text-4xl text-gray-900 tracking-tight mt-3 mb-16">
+              How QuickVet Works
+            </h2>
+          </motion.div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-8 relative">
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-100px" }}
+            variants={{
+              visible: { transition: { staggerChildren: 0.12 } }
+            }}
+            className="grid grid-cols-1 sm:grid-cols-4 gap-8 relative"
+          >
             <div className="hidden sm:block absolute top-8 left-[15%] right-[15%] h-[2px] bg-gradient-to-r from-green-200 via-green-300 to-green-200" />
             {[
               { n: '1', title: 'Share Location', desc: 'We auto-detect your location to find the nearest clinics.', emoji: '📍' },
@@ -268,26 +373,48 @@ export default function Hero({
               { n: '3', title: 'Book Instantly', desc: 'Schedule a clinic visit or home appointment in seconds.', emoji: '📅' },
               { n: '4', title: 'Get Care', desc: 'Your pet receives professional treatment from verified vets.', emoji: '💚' },
             ].map((step) => (
-              <div key={step.n} className="relative z-10 flex flex-col items-center text-center space-y-4">
+              <motion.div
+                key={step.n}
+                variants={{
+                  hidden: { opacity: 0, scale: 0.9, y: 20 },
+                  visible: { opacity: 1, scale: 1, y: 0 }
+                }}
+                className="relative z-10 flex flex-col items-center text-center space-y-4"
+              >
                 <div className="w-16 h-16 rounded-2xl bg-white border-2 border-green-200 shadow-md flex items-center justify-center text-2xl">
                   {step.emoji}
                 </div>
                 <h4 className="font-display font-black text-sm text-gray-800">{step.title}</h4>
                 <p className="text-xs text-gray-500 max-w-[180px] leading-relaxed">{step.desc}</p>
-              </div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         </div>
       </section>
 
       {/* ===== PET CATEGORIES ===== */}
       <section className="py-20 bg-white">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-100px" }}
+            transition={{ duration: 0.6 }}
+            className="text-center mb-12"
+          >
             <h2 className="font-display font-black text-3xl text-gray-900 tracking-tight">Care for Every Companion</h2>
             <p className="text-gray-500 text-sm mt-2">Specialized veterinarians for all types of pets.</p>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+          </motion.div>
+          
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-100px" }}
+            variants={{
+              visible: { transition: { staggerChildren: 0.08 } }
+            }}
+            className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4"
+          >
             {[
               { emoji: '🐕', name: 'Dogs', count: clinics.filter(c => c.specialists.includes('Dog')).length },
               { emoji: '🐈', name: 'Cats', count: clinics.filter(c => c.specialists.includes('Cat')).length },
@@ -295,30 +422,62 @@ export default function Hero({
               { emoji: '🐇', name: 'Rabbits', count: clinics.filter(c => c.specialists.includes('Rabbit')).length },
               { emoji: '🦎', name: 'Exotics', count: clinics.filter(c => c.specialists.includes('Exotics')).length },
             ].map((pet) => (
-              <div key={pet.name} className="bg-[#F4FBF3] border border-green-100/60 rounded-2xl p-5 text-center hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer">
+              <motion.div
+                key={pet.name}
+                variants={{
+                  hidden: { opacity: 0, y: 20 },
+                  visible: { opacity: 1, y: 0 }
+                }}
+                whileHover={{ y: -4, scale: 1.02 }}
+                onClick={onNavigateToFind}
+                className="bg-[#F4FBF3] border border-green-100/60 rounded-2xl p-5 text-center hover:shadow-md hover:border-green-200 transition-all cursor-pointer"
+              >
                 <span className="text-4xl block mb-2">{pet.emoji}</span>
                 <h4 className="font-display font-black text-sm text-slate-800">{pet.name}</h4>
                 <p className="text-[11px] text-slate-400 font-semibold mt-1">{pet.count} specialists</p>
-              </div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         </div>
       </section>
 
       {/* ===== TESTIMONIALS ===== */}
       <section className="py-24 bg-[#F4FBF3]">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-14">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-100px" }}
+            transition={{ duration: 0.6 }}
+            className="text-center mb-14"
+          >
             <span className="text-xs font-bold uppercase tracking-widest text-[#58B368]">Testimonials</span>
             <h2 className="font-display font-black text-4xl text-gray-900 tracking-tight mt-3">Loved by Pet Parents</h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          </motion.div>
+          
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-100px" }}
+            variants={{
+              visible: { transition: { staggerChildren: 0.1 } }
+            }}
+            className="grid grid-cols-1 md:grid-cols-3 gap-6"
+          >
             {[
               { text: 'When Rocky had a heat stroke, the emergency button connected us to a vet in under 12 minutes. Genuinely life-saving.', name: 'Sarah Banerjee', role: 'Golden Retriever Mom', img: 'photo-1544005313-94ddf0286df2' },
               { text: 'Booked a home deworming visit for Luna. The vet was incredibly gentle and thorough. No more stressful car rides!', name: 'Rohan Sridhar', role: 'Persian Cat Dad', img: 'photo-1506794778202-cad84cf45f1d' },
               { text: 'Finding an avian specialist in Bengaluru was impossible until I found QuickVet. Kiwi got the best care possible.', name: 'Ananya Krishnan', role: 'Parakeet Parent', img: 'photo-1534528741775-53994a69daeb' },
             ].map((t, idx) => (
-              <div key={idx} className="bg-white rounded-3xl p-7 border border-slate-100 shadow-sm hover:shadow-md transition-shadow space-y-5">
+              <motion.div
+                key={idx}
+                variants={{
+                  hidden: { opacity: 0, y: 30 },
+                  visible: { opacity: 1, y: 0 }
+                }}
+                whileHover={{ y: -6 }}
+                className="bg-white rounded-3xl p-7 border border-slate-100 shadow-sm hover:shadow-md transition-shadow space-y-5"
+              >
                 <div className="flex gap-1">
                   {[1,2,3,4,5].map(i => <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />)}
                 </div>
@@ -332,16 +491,22 @@ export default function Hero({
                     <p className="text-xs text-gray-400">{t.role}</p>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         </div>
       </section>
 
       {/* ===== JOIN AS VET CTA ===== */}
       <section className="py-20 bg-white">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="relative rounded-[32px] overflow-hidden">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true, margin: "-100px" }}
+            transition={{ duration: 0.7 }}
+            className="relative rounded-[32px] overflow-hidden"
+          >
             <img
               src="https://images.unsplash.com/photo-1581888227599-779811939961?auto=format&fit=crop&q=80&w=1200"
               alt="Veterinarian team"
@@ -354,15 +519,17 @@ export default function Hero({
                 <p className="text-white/75 text-sm leading-relaxed">
                   Get discovered by thousands of pet parents. Manage bookings, build your reputation, and grow your practice with QuickVet.
                 </p>
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.04 }}
+                  whileTap={{ scale: 0.96 }}
                   onClick={onNavigateToFind}
-                  className="px-7 py-3.5 bg-[#58B368] hover:bg-green-600 text-white font-extrabold rounded-2xl shadow-lg transition-all text-sm"
+                  className="px-7 py-3.5 bg-[#58B368] hover:bg-green-600 text-white font-extrabold rounded-2xl shadow-lg transition-all text-sm cursor-pointer"
                 >
                   Register Your Clinic
-                </button>
+                </motion.button>
               </div>
             </div>
-          </div>
+          </motion.div>
         </div>
       </section>
     </div>

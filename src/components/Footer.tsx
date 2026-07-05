@@ -9,7 +9,7 @@ export default function Footer({ onNavigate, onOpenAuth }: FooterProps) {
   return (
     <footer className="bg-slate-900 text-slate-300 pt-16 pb-12 border-t border-slate-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 pb-12 border-b border-slate-800">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pb-12 border-b border-slate-800">
           
           {/* Logo & Description */}
           <div className="space-y-4 text-left">
@@ -76,20 +76,6 @@ export default function Footer({ onNavigate, onOpenAuth }: FooterProps) {
                 <span>Privacy & Offline Data Terms</span>
               </a>
             </div>
-          </div>
-
-          {/* Veterinarians registration column */}
-          <div className="text-left space-y-3.5 bg-slate-800/40 p-4.5 rounded-2xl border border-slate-800">
-            <h4 className="font-display font-bold text-white text-xs uppercase tracking-widest text-[#BFE7C4]">For Veterinary Experts</h4>
-            <p className="text-[11px] text-slate-400 leading-normal">
-              Are you operating a registered, licensed veterinary clinical station in India? Plunge into our live network today.
-            </p>
-            <button
-              onClick={() => onOpenAuth('signup')}
-              className="w-full text-center py-2.5 bg-green-600 hover:bg-[#4CAF50] text-white font-extrabold text-xs rounded-xl shadow-md transition-colors cursor-pointer"
-            >
-              Register Your Clinic Station
-            </button>
           </div>
 
         </div>
