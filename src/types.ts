@@ -114,3 +114,50 @@ export interface EmergencyRequest {
   time: string;
   createdAt: string;
 }
+
+// ===== VACCINATION SYSTEM =====
+
+export interface VaccinationAppointment {
+  id: string;
+  petId: string;
+  petName: string;
+  petType: string;
+  ownerId: string;
+  ownerName: string;
+  ownerEmail: string;
+  clinicId: string;
+  clinicName: string;
+  vaccineName: string;
+  vaccineType: 'core' | 'non-core';
+  diseasesProtected: string[];
+  scheduledDate: string;
+  scheduledTime: string;
+  status: 'scheduled' | 'confirmed' | 'completed' | 'missed' | 'cancelled' | 'rescheduled';
+  notes?: string;
+  // Post-completion fields
+  administeredBy?: string;
+  batchNumber?: string;
+  nextBoosterDate?: string;
+  certificateUrl?: string;
+  // Temporal workflow tracking
+  workflowId?: string;
+  remindersSent?: number;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface VaccinationRecord {
+  id: string;
+  petId: string;
+  petName: string;
+  vaccineName: string;
+  dateAdministered: string;
+  clinicId: string;
+  clinicName: string;
+  veterinarianName: string;
+  batchNumber?: string;
+  nextBoosterDate?: string;
+  notes?: string;
+  certificateUrl?: string;
+  createdAt: string;
+}

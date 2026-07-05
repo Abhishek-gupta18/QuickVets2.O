@@ -483,21 +483,6 @@ export default function AuthModal({
                 : type === 'login' ? 'Let me into QuickVet' : role === 'veterinarian' ? 'Continue to verification' : 'Unlock my companion account'}
             </button>
 
-            <div className="flex items-center gap-3 py-2">
-              <div className="h-px flex-1 bg-slate-200" />
-              <span className="text-[11px] font-bold uppercase tracking-[0.25em] text-slate-400">Or</span>
-              <div className="h-px flex-1 bg-slate-200" />
-            </div>
-
-            <button
-              type="button"
-              onClick={handleGoogleContinue}
-              className="w-full py-3.5 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 active:scale-95 text-slate-700 font-bold rounded-2xl text-sm transition-all text-center cursor-pointer flex items-center justify-center gap-3"
-            >
-              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-slate-300 text-[11px] font-black text-slate-600">G</span>
-              {type === 'login' ? 'Continue with Google' : 'Continue signup with Google'}
-            </button>
-
             {/* SWITCH TOGGLE */}
             <div className="pt-3 border-t text-center">
               <span className="text-xs text-gray-500">

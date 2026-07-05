@@ -588,7 +588,7 @@ export default function App() {
         {/* VIEW: VACCINATION GUIDE */}
         {activeTab === 'vaccinations' && (
           <motion.div key="vaccinations" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-grow">
-            <VaccinationGuide />
+            <VaccinationGuide currentUser={currentUser} clinics={publicClinics} />
           </motion.div>
         )}
 

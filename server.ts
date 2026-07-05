@@ -1326,6 +1326,144 @@ async function buildUserResponse(userId: string) {
   };
 }
 
+
+// ========================
+// VACCINATION APPOINTMENTS API
+// ========================
+
+// In-memory store for vaccination appointments (replace with DB table in production)
+const vaccinationAppointments: any[] = [];
+const vaccinationRecords: any[] = [];
+
+// CREATE vaccination appointment
+app.post('/api/vaccinations/appointments', authenticateToken, async (req: any, res: any) => {
+  try {
+    const { petId, petName, petType, clinicId, clinicName, vaccineName, vaccineType, diseasesProtected, scheduledDate, scheduledTime, notes } = req.body;
+    if (!petId || !clinicId || !vaccineName || !scheduledDate || !scheduledTime) {
+      return res.status(400).json({ error: 'Missing required fields.' });
+    }
+
+    const id = `vacc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const appointment = {
+      id,
+      petId, petName, petType,
+      ownerId: req.user.id,
+      ownerName: req.user.email,
+      ownerEmail: req.user.email,
+      clinicId, clinicName,
+      vaccineName, vaccineType: vaccineType || 'core',
+      diseasesProtected: diseasesProtected || [],
+      scheduledDate, scheduledTime,
+      status: 'scheduled',
+      notes: notes || '',
+      remindersSent: 0,
+      workflowId: `wf-vacc-${id}`,
+      createdAt: new Date().toISOString(),
+    };
+
+    vaccinationAppointments.push(appointment);
+
+    // In production: Start Temporal workflow here
+    // const handle = await temporalClient.workflow.start(VaccinationAppointmentWorkflow, {
+    //   workflowId: appointment.workflowId,
+    //   taskQueue: 'vaccination-queue',
+    //   args: [{ appointmentId: id, petName, petType, ownerEmail: req.user.email, ... }],
+    // });
+
+    res.status(201).json(appointment);
+  } catch (err: any) {
+    console.error('Create vaccination appointment error:', err);
+    res.status(500).json({ error: 'Failed to create vaccination appointment.' });
+  }
+});
+
+// GET vaccination appointments for current user
+app.get('/api/vaccinations/appointments', authenticateToken, async (req: any, res: any) => {
+  try {
+    const userAppts = vaccinationAppointments.filter(a => a.ownerId === req.user.id || a.ownerEmail === req.user.email);
+    res.json(userAppts);
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to fetch vaccination appointments.' });
+  }
+});
+
+// GET all vaccination appointments (admin)
+app.get('/api/vaccinations/appointments/all', authenticateToken, async (req: any, res: any) => {
+  try {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin access required.' });
+    res.json(vaccinationAppointments);
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to fetch all vaccination appointments.' });
+  }
+});
+
+// UPDATE vaccination appointment status
+app.put('/api/vaccinations/appointments/:id/status', authenticateToken, async (req: any, res: any) => {
+  try {
+    const { status, administeredBy, batchNumber, nextBoosterDate } = req.body;
+    const appt = vaccinationAppointments.find(a => a.id === req.params.id);
+    if (!appt) return res.status(404).json({ error: 'Appointment not found.' });
+
+    appt.status = status;
+    appt.updatedAt = new Date().toISOString();
+    if (administeredBy) appt.administeredBy = administeredBy;
+    if (batchNumber) appt.batchNumber = batchNumber;
+    if (nextBoosterDate) appt.nextBoosterDate = nextBoosterDate;
+
+    // If completed, create a vaccination record
+    if (status === 'completed') {
+      const record = {
+        id: `vrec-${Date.now()}`,
+        petId: appt.petId,
+        petName: appt.petName,
+        vaccineName: appt.vaccineName,
+        dateAdministered: appt.scheduledDate,
+        clinicId: appt.clinicId,
+        clinicName: appt.clinicName,
+        veterinarianName: administeredBy || 'Veterinarian',
+        batchNumber: batchNumber || '',
+        nextBoosterDate: nextBoosterDate || '',
+        notes: appt.notes,
+        createdAt: new Date().toISOString(),
+      };
+      vaccinationRecords.push(record);
+    }
+
+    res.json(appt);
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to update appointment status.' });
+  }
+});
+
+// CANCEL vaccination appointment
+app.delete('/api/vaccinations/appointments/:id', authenticateToken, async (req: any, res: any) => {
+  try {
+    const idx = vaccinationAppointments.findIndex(a => a.id === req.params.id);
+    if (idx === -1) return res.status(404).json({ error: 'Appointment not found.' });
+
+    vaccinationAppointments[idx].status = 'cancelled';
+    vaccinationAppointments[idx].updatedAt = new Date().toISOString();
+
+    // In production: Cancel Temporal workflow
+    // await temporalClient.workflow.cancel(vaccinationAppointments[idx].workflowId);
+
+    res.json({ message: 'Appointment cancelled.' });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to cancel appointment.' });
+  }
+});
+
+// GET vaccination records for a pet
+app.get('/api/vaccinations/records/:petId', authenticateToken, async (req: any, res: any) => {
+  try {
+    const records = vaccinationRecords.filter(r => r.petId === req.params.petId);
+    res.json(records);
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to fetch vaccination records.' });
+  }
+});
+
+
 // ========================
 // VITE MIDDLEWARE & SERVER START
 // ========================

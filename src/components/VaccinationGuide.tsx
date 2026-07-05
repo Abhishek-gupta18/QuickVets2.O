@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Shield, ChevronDown, AlertCircle, Syringe, Info, CheckCircle2, Clock, Star } from 'lucide-react';
+import { Shield, ChevronDown, AlertCircle, Syringe, Info, CheckCircle2, Clock, Star, CalendarDays } from 'lucide-react';
+import VaccinationBooking from './VaccinationBooking';
 
 type Species = 'dogs' | 'cats' | 'rabbits' | 'birds' | 'exotics';
 
@@ -76,9 +77,10 @@ const vaccinationData: Record<Species, SpeciesData> = {
   },
 };
 
-export default function VaccinationGuide() {
+export default function VaccinationGuide({ currentUser, clinics }: { currentUser?: any; clinics?: any[] }) {
   const [activeSpecies, setActiveSpecies] = useState<Species>('dogs');
   const [expandedVaccine, setExpandedVaccine] = useState<string | null>(null);
+  const [bookingVaccine, setBookingVaccine] = useState<any | null>(null);
   const data = vaccinationData[activeSpecies];
 
   return (
@@ -202,7 +204,7 @@ export default function VaccinationGuide() {
 
                 {/* Expanded disease info */}
                 {isExpanded && vaccine.diseaseInfo && (
-                  <div className="px-5 pb-5 pt-0">
+                  <div className="px-5 pb-5 pt-0 space-y-4">
                     <div className="bg-slate-50 rounded-2xl border border-slate-100 p-5 space-y-3">
                       <h4 className="font-display font-bold text-sm text-slate-800">Disease Information</h4>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -224,6 +226,15 @@ export default function VaccinationGuide() {
                         </div>
                       </div>
                     </div>
+                    {currentUser && currentUser.pets && currentUser.pets.length > 0 && clinics && clinics.length > 0 && (
+                      <button onClick={() => setBookingVaccine(vaccine)}
+                        className="w-full py-3.5 bg-[#58B368] hover:bg-green-600 text-white font-extrabold text-sm rounded-xl shadow-md shadow-green-200/40 transition-all active:scale-[0.97] flex items-center justify-center gap-2">
+                        <CalendarDays className="w-4 h-4" /> Book This Vaccination
+                      </button>
+                    )}
+                    {!currentUser && (
+                      <p className="text-xs text-slate-500 text-center bg-slate-50 border border-slate-100 rounded-xl p-3">Sign in to book vaccination appointments.</p>
+                    )}
                   </div>
                 )}
               </div>
@@ -276,6 +287,17 @@ export default function VaccinationGuide() {
         </section>
 
       </div>
+
+      {/* Vaccination Booking Modal */}
+      {bookingVaccine && currentUser && clinics && (
+        <VaccinationBooking
+          vaccine={bookingVaccine}
+          currentUser={currentUser}
+          clinics={clinics}
+          onClose={() => setBookingVaccine(null)}
+          onBooked={() => setBookingVaccine(null)}
+        />
+      )}
     </div>
   );
 }
