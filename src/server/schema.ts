@@ -49,6 +49,11 @@ export const vetClinics = pgTable('vet_clinics', {
     fileType: string;
     fileSize: number;
     uploadedAt: string;
+    /** Cloudinary public_id — present for Cloudinary uploads */
+    cloudinaryPublicId?: string;
+    /** Cloudinary resource type: 'raw' (PDF) or 'image' */
+    resourceType?: 'raw' | 'image';
+    /** Legacy base64 data URL — only in demo/mock data */
     dataUrl?: string;
   }>>().default([]),
   verificationStatus: varchar('verification_status', { length: 30 }).default('approved'),

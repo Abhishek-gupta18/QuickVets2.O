@@ -60,6 +60,11 @@ export interface VetDocument {
   fileType: string;
   fileSize: number;
   uploadedAt: string;
+  /** Cloudinary public_id — present for real uploads; absent for legacy/mock data */
+  cloudinaryPublicId?: string;
+  /** Cloudinary resource type: 'raw' for PDFs, 'image' for images */
+  resourceType?: 'raw' | 'image';
+  /** Legacy base64 data URL — only present in demo/mock documents */
   dataUrl?: string;
 }
 

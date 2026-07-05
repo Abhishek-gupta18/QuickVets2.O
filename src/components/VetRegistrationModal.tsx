@@ -62,6 +62,10 @@ export default function VetRegistrationModal({
     clinicPhotograph: null,
     additionalCertifications: null,
   });
+  // Track which documents are currently uploading
+  const [uploadingDoc, setUploadingDoc] = useState<Record<string, boolean>>({});
+  // Track per-document upload errors
+  const [docErrors, setDocErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [registered, setRegistered] = useState(false);
 
@@ -74,34 +78,74 @@ export default function VetRegistrationModal({
     };
   };
 
-  const readFileAsDataUrl = (file: File): Promise<string> => new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ''));
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
-
+  /** Upload a single document to Cloudinary via the server API */
   const handleDocumentUpload = async (key: string, label: string, file: File | null) => {
     if (!file) return;
-    if (file.size > 2.5 * 1024 * 1024) {
-      alert('Please upload a document under 2.5 MB for this demo.');
+
+    // Client-side validation first
+    const allowedMime = new Set(['application/pdf', 'image/jpeg', 'image/jpg', 'image/png']);
+    const allowedExt = new Set(['.pdf', '.jpg', '.jpeg', '.png']);
+    const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
+    if (!allowedMime.has(file.type) || !allowedExt.has(ext)) {
+      setDocErrors((prev) => ({ ...prev, [key]: 'Only PDF, JPG, JPEG, or PNG files are accepted.' }));
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setDocErrors((prev) => ({ ...prev, [key]: `File is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Max 10 MB.` }));
       return;
     }
 
-    const dataUrl = await readFileAsDataUrl(file);
-    setDocuments((prev) => ({
-      ...prev,
-      [key]: {
-        id: `${key}-${Date.now()}`,
-        label,
-        fileName: file.name,
-        fileType: file.type || 'application/octet-stream',
-        fileSize: file.size,
-        uploadedAt: new Date().toISOString(),
-        dataUrl,
-      },
-    }));
+    // Clear any previous error for this slot
+    setDocErrors((prev) => { const n = { ...prev }; delete n[key]; return n; });
+
+    // If a document already exists in this slot, delete the old one from Cloudinary first
+    const existing = documents[key];
+    if (existing?.cloudinaryPublicId) {
+      try {
+        const apiBase = (import.meta as any).env?.VITE_API_URL || '';
+        const token = localStorage.getItem('vetfinder_token');
+        const encodedId = btoa(existing.cloudinaryPublicId).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+        await fetch(`${apiBase}/api/documents/${encodedId}?resourceType=${existing.resourceType || 'image'}`, {
+          method: 'DELETE',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+      } catch {
+        // Non-fatal — proceed with new upload even if delete fails
+        console.warn('[Documents] Could not remove old document from Cloudinary.');
+      }
+    }
+
+    // Upload to server → Cloudinary
+    setUploadingDoc((prev) => ({ ...prev, [key]: true }));
+    try {
+      const apiBase = (import.meta as any).env?.VITE_API_URL || '';
+      const token = localStorage.getItem('vetfinder_token');
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('docKey', key);
+      formData.append('label', label);
+
+      const response = await fetch(`${apiBase}/api/documents/upload`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errBody = await response.json().catch(() => ({ error: 'Upload failed.' }));
+        throw new Error(errBody.error || 'Upload failed.');
+      }
+
+      const uploadedDoc: VetDocument = await response.json();
+      setDocuments((prev) => ({ ...prev, [key]: uploadedDoc }));
+    } catch (err: any) {
+      setDocErrors((prev) => ({ ...prev, [key]: err.message || 'Upload failed. Please try again.' }));
+    } finally {
+      setUploadingDoc((prev) => ({ ...prev, [key]: false }));
+    }
   };
+
 
   const requiredDocs = ['veterinaryLicense', 'governmentId', 'degreeCertificate', 'registrationCertificate', 'profilePhotograph'];
   const uploadedDocuments = Object.values(documents).filter(Boolean) as VetDocument[];
@@ -410,15 +454,42 @@ export default function VetRegistrationModal({
                     { key: 'additionalCertifications', label: 'Additional Certifications (Optional)' },
                   ].map((doc) => {
                     const uploaded = documents[doc.key];
+                    const isUploading = uploadingDoc[doc.key];
+                    const error = docErrors[doc.key];
                     return (
-                      <label key={doc.key} className="block rounded-2xl border border-slate-200 bg-slate-50 p-4 cursor-pointer hover:border-green-300 transition-colors">
-                        <input type="file" accept=".pdf,image/png,image/jpeg,image/webp" className="sr-only" onChange={(e) => handleDocumentUpload(doc.key, doc.label.replace(' *', ''), e.target.files?.[0] || null)} />
-                        <span className="flex items-center gap-2 text-sm font-black text-slate-800">
-                          <FileText className="w-4 h-4 text-green-700" />
-                          {doc.label}
-                        </span>
-                        <span className="mt-1 block truncate text-xs text-slate-400">{uploaded ? uploaded.fileName : 'Click to upload PDF, PNG, JPG, or WEBP'}</span>
-                      </label>
+                      <div key={doc.key}>
+                        <label
+                          className={`block rounded-2xl border p-4 cursor-pointer transition-colors ${
+                            error
+                              ? 'border-rose-300 bg-rose-50'
+                              : uploaded
+                              ? 'border-green-300 bg-green-50'
+                              : 'border-slate-200 bg-slate-50 hover:border-green-300'
+                          } ${isUploading ? 'pointer-events-none opacity-70' : ''}`}
+                        >
+                          <input
+                            type="file"
+                            accept=".pdf,image/png,image/jpeg"
+                            className="sr-only"
+                            disabled={isUploading}
+                            onChange={(e) => handleDocumentUpload(doc.key, doc.label.replace(' *', ''), e.target.files?.[0] || null)}
+                          />
+                          <span className="flex items-center gap-2 text-sm font-black text-slate-800">
+                            <FileText className={`w-4 h-4 ${uploaded ? 'text-green-600' : 'text-green-700'}`} />
+                            {doc.label}
+                          </span>
+                          <span className="mt-1 block truncate text-xs text-slate-400">
+                            {isUploading
+                              ? 'Uploading to Cloudinary…'
+                              : uploaded
+                              ? `✅ ${uploaded.fileName}`
+                              : 'Click to upload PDF, PNG, or JPG (max 10 MB)'}
+                          </span>
+                        </label>
+                        {error && (
+                          <p className="mt-1 text-[11px] text-rose-600 font-bold px-1">{error}</p>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
@@ -444,8 +515,12 @@ export default function VetRegistrationModal({
                   <ArrowRight className="w-4 h-4" />
                 </button>
               ) : (
-                <button type="submit" disabled={loading} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#4CAF50] px-6 py-3 text-xs font-black text-white hover:bg-green-700 disabled:opacity-60">
-                  {loading ? 'Submitting...' : 'Submit for Admin Verification'}
+                <button
+                  type="submit"
+                  disabled={loading || Object.values(uploadingDoc).some(Boolean)}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#4CAF50] px-6 py-3 text-xs font-black text-white hover:bg-green-700 disabled:opacity-60"
+                >
+                  {loading ? 'Submitting…' : Object.values(uploadingDoc).some(Boolean) ? 'Upload in progress…' : 'Submit for Admin Verification'}
                   <ClipboardCheck className="w-4 h-4" />
                 </button>
               )}

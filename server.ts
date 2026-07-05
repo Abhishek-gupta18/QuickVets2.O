@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import bcrypt from 'bcryptjs';
+import multer from 'multer';
 import { eq, desc, and, sql } from 'drizzle-orm';
 import { db, testConnection, closePool, isDatabaseAvailable } from './src/server/db.js';
 import {
@@ -13,6 +14,21 @@ import {
 import { signToken } from './src/server/jwt.js';
 import { authenticateToken, optionalAuthenticateToken, requireRole } from './src/server/middleware.js';
 import { getAdminAnalytics, getUserAnalytics, getVetAnalytics } from './src/server/analytics.js';
+import {
+  uploadDocument,
+  deleteDocument,
+  generateSignedUrl,
+  validateFile,
+  isCloudinaryConfigured,
+} from './src/server/cloudinary.js';
+
+// ──────────────────────────────────────────────
+// Multer: memory storage, 10 MB limit
+// ──────────────────────────────────────────────
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB hard limit at transport layer
+});
 
 const app = express();
 const PORT = 3000;
@@ -254,6 +270,7 @@ app.get('/api/health', (req, res) => {
       DATABASE_URL: process.env.DATABASE_URL ? '✅ configured' : '❌ missing',
       JWT_SECRET: process.env.JWT_SECRET ? '✅ configured' : '❌ missing',
       GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID ? '✅ configured' : '❌ missing',
+      CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME ? '✅ configured' : '❌ missing',
     }
   });
 });
@@ -624,7 +641,10 @@ app.post('/api/clinics', authenticateToken, async (req: any, res: any) => {
       isOpenNow: true,
       workingHours: workingHours || '9:00 AM - 8:00 PM',
       services: services || ['General Consultations', 'Vaccination', 'Pharmacy'],
-      verificationDocuments: Array.isArray(verificationDocuments) ? verificationDocuments : [],
+      // Strip any base64 dataUrl fields — only Cloudinary metadata is stored in DB
+      verificationDocuments: Array.isArray(verificationDocuments)
+        ? verificationDocuments.map(({ dataUrl: _omit, ...rest }: any) => rest)
+        : [],
       verificationStatus: 'pending',
       licenseNumber: licenseNumber || '',
       veterinarianName: veterinarianName || '',
@@ -1008,6 +1028,129 @@ app.get('/api/user/me', authenticateToken, async (req: any, res: any) => {
     res.status(500).json({ error: 'Failed to fetch user.' });
   }
 });
+
+// ========================
+// DOCUMENT ROUTES (Cloudinary)
+// ========================
+
+/**
+ * POST /api/documents/upload
+ * Upload a single verification document to Cloudinary.
+ * Authenticated — veterinarians only.
+ * Body: multipart/form-data  { file, docKey, label }
+ */
+app.post('/api/documents/upload', authenticateToken, upload.single('file'), async (req: any, res: any) => {
+  try {
+    if (!['veterinarian', 'admin'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Only veterinarians can upload verification documents.' });
+    }
+
+    if (!isCloudinaryConfigured()) {
+      return res.status(503).json({
+        error: 'Document storage is not configured on this server. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET.',
+      });
+    }
+
+    const file = req.file as Express.Multer.File | undefined;
+    if (!file) {
+      return res.status(400).json({ error: 'No file received. Send file as multipart/form-data with field name "file".' });
+    }
+
+    const docKey = typeof req.body.docKey === 'string' ? req.body.docKey.trim() : 'document';
+    const label = typeof req.body.label === 'string' ? req.body.label.trim() : docKey;
+
+    // Validate file type and size
+    const validation = validateFile(file.mimetype, file.size, file.originalname);
+    if (!validation.valid) {
+      return res.status(400).json({ error: validation.error });
+    }
+
+    // Use the vet's clinicId as the folder segment; fall back to userId
+    const vetId = req.user.clinicId || req.user.id;
+
+    const meta = await uploadDocument(
+      file.buffer,
+      file.mimetype,
+      file.originalname,
+      vetId,
+      docKey
+    );
+
+    const docId = `doc-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+
+    res.status(201).json({
+      id: docId,
+      label,
+      fileName: meta.fileName,
+      fileType: meta.fileType,
+      fileSize: meta.fileSize,
+      uploadedAt: meta.uploadedAt,
+      cloudinaryPublicId: meta.cloudinaryPublicId,
+      resourceType: meta.resourceType,
+    });
+  } catch (err: any) {
+    console.error('[Documents] Upload error:', err);
+    res.status(500).json({ error: err.message || 'Failed to upload document.' });
+  }
+});
+
+/**
+ * DELETE /api/documents/:publicId
+ * Delete a document from Cloudinary.
+ * Authenticated — veterinarians only.
+ * publicId must be base64url-encoded to safely transmit slashes.
+ */
+app.delete('/api/documents/:publicId', authenticateToken, async (req: any, res: any) => {
+  try {
+    if (!['veterinarian', 'admin'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Only veterinarians can delete verification documents.' });
+    }
+
+    if (!isCloudinaryConfigured()) {
+      return res.status(503).json({ error: 'Document storage is not configured on this server.' });
+    }
+
+    const publicId = Buffer.from(req.params.publicId, 'base64url').toString('utf8');
+    const resourceType = (req.query.resourceType === 'raw' ? 'raw' : 'image') as 'raw' | 'image';
+
+    if (!publicId || !publicId.startsWith('quickvet/vets/')) {
+      return res.status(400).json({ error: 'Invalid document reference.' });
+    }
+
+    await deleteDocument(publicId, resourceType);
+    res.json({ deleted: true, publicId });
+  } catch (err: any) {
+    console.error('[Documents] Delete error:', err);
+    res.status(500).json({ error: err.message || 'Failed to delete document.' });
+  }
+});
+
+/**
+ * GET /api/documents/:publicId/signed-url
+ * Generate a short-lived signed URL for admin document viewing.
+ * Admin only. publicId must be base64url-encoded.
+ */
+app.get('/api/documents/:publicId/signed-url', authenticateToken, requireRole('admin'), async (req: any, res: any) => {
+  try {
+    if (!isCloudinaryConfigured()) {
+      return res.status(503).json({ error: 'Document storage is not configured on this server.' });
+    }
+
+    const publicId = Buffer.from(req.params.publicId, 'base64url').toString('utf8');
+    const resourceType = (req.query.resourceType === 'raw' ? 'raw' : 'image') as 'raw' | 'image';
+
+    if (!publicId || !publicId.startsWith('quickvet/vets/')) {
+      return res.status(400).json({ error: 'Invalid document reference.' });
+    }
+
+    const result = generateSignedUrl(publicId, resourceType);
+    res.json(result);
+  } catch (err: any) {
+    console.error('[Documents] Signed URL error:', err);
+    res.status(500).json({ error: err.message || 'Failed to generate signed URL.' });
+  }
+});
+
 
 // ANALYTICS: Admin dashboard
 app.get('/api/analytics/admin', authenticateToken, requireRole('admin'), async (_req: any, res: any) => {

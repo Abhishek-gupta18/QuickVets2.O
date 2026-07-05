@@ -11,8 +11,6 @@ import {
   Download,
   Eye,
   FileSearch,
-  Filter,
-  Flag,
   Gauge,
   Lock,
   MessageSquareWarning,
@@ -21,7 +19,6 @@ import {
   ShieldOff,
   Star,
   Stethoscope,
-  UserCog,
   Users,
   XCircle,
 } from 'lucide-react';
@@ -70,9 +67,7 @@ type AdminTab =
   | 'verification'
   | 'performance'
   | 'complaints'
-  | 'users'
   | 'emergencies'
-  | 'documents'
   | 'security';
 
 const verificationApplications = [
@@ -176,8 +171,41 @@ export default function AdminDashboard({ currentUser, clinics, bookings, emergen
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDocument, setSelectedDocument] = useState<{ vetName: string; document: VetDocument } | null>(null);
+  const [signedUrlState, setSignedUrlState] = useState<{ loading: boolean; url: string | null; error: string | null }>({
+    loading: false, url: null, error: null,
+  });
   const [analytics, setAnalytics] = useState<AdminAnalyticsData | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
+
+  /** Fetch a Cloudinary signed URL for a document with a cloudinaryPublicId */
+  const openDocumentWithSignedUrl = async (vetName: string, document: VetDocument) => {
+    setSelectedDocument({ vetName, document });
+
+    if (!document.cloudinaryPublicId) {
+      // Mock/legacy doc — no signed URL needed
+      setSignedUrlState({ loading: false, url: document.dataUrl || null, error: null });
+      return;
+    }
+
+    setSignedUrlState({ loading: true, url: null, error: null });
+    try {
+      const apiBase = (import.meta as any).env?.VITE_API_URL || '';
+      const token = localStorage.getItem('vetfinder_token');
+      const encodedId = btoa(document.cloudinaryPublicId).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+      const res = await fetch(
+        `${apiBase}/api/documents/${encodedId}/signed-url?resourceType=${document.resourceType || 'image'}`,
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+      );
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || 'Failed to generate document link.');
+      }
+      const { signedUrl } = await res.json();
+      setSignedUrlState({ loading: false, url: signedUrl, error: null });
+    } catch (err: any) {
+      setSignedUrlState({ loading: false, url: null, error: err.message || 'Could not load document.' });
+    }
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -303,9 +331,7 @@ export default function AdminDashboard({ currentUser, clinics, bookings, emergen
     { id: 'verification', label: 'Vet Verification', icon: ClipboardCheck, count: stats.pendingVerifications },
     { id: 'performance', label: 'Performance', icon: Gauge },
     { id: 'complaints', label: 'Reviews & Complaints', icon: MessageSquareWarning, count: complaints.length },
-    { id: 'users', label: 'User Management', icon: Users },
     { id: 'emergencies', label: 'Emergency Monitor', icon: AlertTriangle, count: stats.emergencyRequests },
-    { id: 'documents', label: 'Documents', icon: FileSearch },
     { id: 'security', label: 'Security Logs', icon: Lock },
   ] as const;
 
@@ -576,7 +602,7 @@ export default function AdminDashboard({ currentUser, clinics, bookings, emergen
                             {app.documents.map((doc) => (
                               <button
                                 key={doc.id}
-                                onClick={() => setSelectedDocument({ vetName: app.doctor, document: doc })}
+                                onClick={() => openDocumentWithSignedUrl(app.doctor, doc)}
                                 className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-[10px] font-bold text-slate-600 hover:border-green-300 hover:text-green-700"
                               >
                                 <FileSearch className="w-3 h-3" /> {doc.label}
@@ -696,33 +722,7 @@ export default function AdminDashboard({ currentUser, clinics, bookings, emergen
               </div>
             )}
 
-            {activeTab === 'users' && (
-              <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-5">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <h3 className="font-display font-black text-2xl text-slate-900">User & Veterinarian Management</h3>
-                    <p className="text-xs text-slate-500">Search profiles, view activity history, suspend risky accounts, and request reverification.</p>
-                  </div>
-                  <button className="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-black text-slate-600 flex items-center gap-1.5"><Filter className="w-4 h-4" />Filters</button>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {clinics.slice(0, 4).map((clinic, index) => (
-                    <div key={clinic.id} className="rounded-3xl border border-slate-100 p-4 flex gap-4">
-                      <img src={clinic.imageUrl} alt={clinic.name} className="w-20 h-20 rounded-2xl object-cover" />
-                      <div className="min-w-0 flex-1">
-                        <h4 className="font-black text-slate-900 line-clamp-1">{clinic.name}</h4>
-                        <p className="text-xs text-slate-500 line-clamp-1">{clinic.address}</p>
-                        <div className="flex flex-wrap gap-2 mt-3">
-                          <button className="px-2.5 py-1 rounded-lg bg-green-50 text-green-700 text-[10px] font-black">Edit</button>
-                          <button className="px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 text-[10px] font-black">Reverify</button>
-                          <button className="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 text-[10px] font-black">{index === 2 ? 'Reactivate' : 'Suspend'}</button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+
 
             {activeTab === 'emergencies' && (
               <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-5">
@@ -748,49 +748,7 @@ export default function AdminDashboard({ currentUser, clinics, bookings, emergen
               </div>
             )}
 
-            {activeTab === 'documents' && (
-              <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
-                <div className="xl:col-span-2 bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4">
-                  <h3 className="font-display font-black text-2xl text-slate-900">Document Verification Center</h3>
-                  {applications.map((app) => (
-                    <div key={app.id} className="rounded-2xl border border-slate-100 p-4">
-                      <div className="flex items-center justify-between gap-3 mb-3">
-                        <div>
-                          <h4 className="font-black text-slate-900">{app.doctor}</h4>
-                          <p className="text-xs text-slate-500">{app.license} · {app.documents.length} uploaded files</p>
-                        </div>
-                        <button className="p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-600" title="Download documents"><Download className="w-4 h-4" /></button>
-                      </div>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                        {app.documents.map((document) => (
-                          <button
-                            key={document.id}
-                            onClick={() => setSelectedDocument({ vetName: app.doctor, document })}
-                            className="min-h-20 rounded-2xl bg-slate-50 border border-slate-200 text-[10px] font-black text-slate-600 flex flex-col items-center justify-center gap-2 hover:border-green-300 hover:text-green-700"
-                          >
-                            <FileSearch className="w-5 h-5 text-green-600" />
-                            <span>{document.label}</span>
-                            <span className="max-w-full px-2 truncate text-slate-400 font-bold">{document.fileName}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4">
-                  <h3 className="font-display font-black text-slate-900">Fraud Flags</h3>
-                  {['Duplicate license number', 'Expired certificate', 'Same phone on multiple accounts', 'Suspicious login location'].map((flag, index) => (
-                    <div key={flag} className="flex items-center gap-3 rounded-2xl bg-rose-50/60 border border-rose-100 p-3">
-                      <Flag className="w-4 h-4 text-rose-600" />
-                      <div>
-                        <span className="block text-xs font-black text-slate-800">{flag}</span>
-                        <span className="text-[10px] text-slate-500">{[2, 5, 3, 1][index]} accounts</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+
 
             {activeTab === 'security' && (
               <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
@@ -829,12 +787,15 @@ export default function AdminDashboard({ currentUser, clinics, bookings, emergen
                 <h3 className="font-display font-black text-xl text-slate-900">{selectedDocument.document.label}</h3>
                 <p className="text-xs text-slate-500">
                   {selectedDocument.vetName} · {selectedDocument.document.fileName} · {formatBytes(selectedDocument.document.fileSize)}
+                  {selectedDocument.document.cloudinaryPublicId && (
+                    <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded bg-green-50 text-green-700 text-[10px] font-black border border-green-100">Cloudinary</span>
+                  )}
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                {selectedDocument.document.dataUrl && (
+                {signedUrlState.url && (
                   <a
-                    href={selectedDocument.document.dataUrl}
+                    href={signedUrlState.url}
                     download={selectedDocument.document.fileName}
                     className="px-3 py-2 rounded-xl bg-slate-900 text-white text-xs font-black flex items-center gap-1.5"
                   >
@@ -842,7 +803,7 @@ export default function AdminDashboard({ currentUser, clinics, bookings, emergen
                   </a>
                 )}
                 <button
-                  onClick={() => setSelectedDocument(null)}
+                  onClick={() => { setSelectedDocument(null); setSignedUrlState({ loading: false, url: null, error: null }); }}
                   className="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-600 text-xs font-black"
                 >
                   Close
@@ -850,16 +811,26 @@ export default function AdminDashboard({ currentUser, clinics, bookings, emergen
               </div>
             </div>
             <div className="p-4 bg-slate-100 overflow-auto min-h-[420px]">
-              {selectedDocument.document.dataUrl ? (
+              {signedUrlState.loading ? (
+                <div className="h-[420px] flex flex-col items-center justify-center gap-3 text-slate-500">
+                  <div className="w-8 h-8 rounded-full border-2 border-green-500 border-t-transparent animate-spin" />
+                  <p className="text-sm font-bold">Generating secure link…</p>
+                </div>
+              ) : signedUrlState.error ? (
+                <div className="h-[420px] flex flex-col items-center justify-center gap-3 text-center p-6">
+                  <FileSearch className="w-10 h-10 text-rose-400" />
+                  <p className="text-sm font-black text-rose-600">{signedUrlState.error}</p>
+                </div>
+              ) : signedUrlState.url ? (
                 selectedDocument.document.fileType.startsWith('image/') ? (
                   <img
-                    src={selectedDocument.document.dataUrl}
+                    src={signedUrlState.url}
                     alt={selectedDocument.document.label}
                     className="max-w-full mx-auto rounded-2xl border border-slate-200 bg-white"
                   />
                 ) : (
                   <iframe
-                    src={selectedDocument.document.dataUrl}
+                    src={signedUrlState.url}
                     title={selectedDocument.document.label}
                     className="w-full h-[65vh] rounded-2xl border border-slate-200 bg-white"
                   />
