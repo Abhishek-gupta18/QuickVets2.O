@@ -539,6 +539,7 @@ export default function App() {
               onSelectClinic={(id) => { setSelectedClinicId(id); setActiveTab('find_vets'); }}
               onNavigateToFind={() => setActiveTab('find_vets')}
               onNavigateToEmergency={() => setActiveTab('emergency')}
+              onNavigateToVetRegister={() => setAuthModalType('signup')}
             />
           </motion.div>
         )}

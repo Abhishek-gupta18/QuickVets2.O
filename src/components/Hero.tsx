@@ -10,6 +10,7 @@ interface HeroProps {
   onSelectClinic: (id: string) => void;
   onNavigateToFind: () => void;
   onNavigateToEmergency: () => void;
+  onNavigateToVetRegister: () => void;
 }
 
 export default function Hero({
@@ -19,6 +20,7 @@ export default function Hero({
   onSelectClinic,
   onNavigateToFind,
   onNavigateToEmergency,
+  onNavigateToVetRegister,
 }: HeroProps) {
   const verifiedClinics = clinics.filter(c => c.verificationStatus === 'approved');
   const featuredVets = clinics.slice(0, 3);
@@ -547,7 +549,7 @@ export default function Hero({
                 <motion.button
                   whileHover={{ scale: 1.04 }}
                   whileTap={{ scale: 0.96 }}
-                  onClick={onNavigateToFind}
+                  onClick={onNavigateToVetRegister}
                   className="px-7 py-3.5 bg-[#58B368] hover:bg-green-600 text-white font-extrabold rounded-2xl shadow-lg transition-all text-sm cursor-pointer"
                 >
                   Register Your Clinic
