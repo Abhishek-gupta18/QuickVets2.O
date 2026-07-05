@@ -9,6 +9,7 @@ import InteractiveMap from './components/InteractiveMap';
 import ClinicCard from './components/ClinicCard';
 import BookingModal from './components/BookingModal';
 import ReviewsModal from './components/ReviewsModal';
+import ReviewsView from './components/ReviewsView';
 import EmergencyWidget from './components/EmergencyWidget';
 import UserDashboard from './components/UserDashboard';
 import VetDashboard from './components/VetDashboard';
@@ -739,29 +740,16 @@ export default function App() {
         {/* VIEW 4: REVIEWS FEED */}
         {activeTab === 'reviews' && (
           <motion.div key="reviews" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-left space-y-6">
-            <div className="border-b pb-3 space-y-1">
-              <span className="text-[10px] uppercase font-bold text-[#58B368] bg-green-100/40 py-1 px-2.5 rounded-md">Feedback Vault</span>
-              <h3 className="font-display font-black text-3xl text-gray-900 tracking-tight">Recent Verified Clinical Reviews</h3>
-              <p className="text-gray-500 text-xs sm:text-sm">Real stories from local companion pet parents in India.</p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {publicClinics.map(clinic => (
-                <div key={clinic.id} className="p-5 bg-white border border-gray-100 rounded-3xl space-y-3 shadow-sm hover:border-[#58B368]/40 transition-colors">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="font-display font-bold text-gray-800 text-sm leading-none">{clinic.name}</h4>
-                      <span className="text-[10px] text-gray-400 mt-1 inline-block">📍 {clinic.area}, {clinic.city}</span>
-                    </div>
-                    <button onClick={() => setReviewsClinic(clinic)} className="text-xs text-[#58B368] font-bold hover:underline">View All Feedback →</button>
-                  </div>
-                  <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 flex items-center justify-between text-xs text-gray-500">
-                    <span>★ <b>{clinic.rating} Rating Score</b></span>
-                    <span>💬 <b>{clinic.reviewsCount} Patient Audits</b></span>
-                  </div>
-                </div>
-              ))}
-            </div>
+            className="flex-grow w-full">
+            <ReviewsView
+              clinics={publicClinics}
+              currentUser={currentUser}
+              onOpenAuth={(type) => setAuthModalType(type)}
+              onSelectClinic={(clinic) => {
+                setSelectedClinicId(clinic.id);
+                setActiveTab('find_vets');
+              }}
+            />
           </motion.div>
         )}
 

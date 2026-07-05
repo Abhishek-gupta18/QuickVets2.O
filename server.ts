@@ -607,6 +607,73 @@ app.get('/api/clinics/:id/reviews', async (req, res) => {
 });
 
 
+// REVIEWS: Get all reviews (global feed) with clinic metadata
+app.get('/api/reviews', async (req, res) => {
+  try {
+    const limitVal = parseInt(req.query.limit as string) || 100;
+    const offsetVal = parseInt(req.query.offset as string) || 0;
+    const petType = req.query.petType as string;
+    const rating = req.query.rating as string;
+
+    const conditions = [];
+    if (petType && petType !== 'All') {
+      conditions.push(eq(clinicReviews.petType, petType));
+    }
+    if (rating && rating !== 'All') {
+      conditions.push(eq(clinicReviews.rating, parseInt(rating)));
+    }
+
+    let queryBuilder = db.select({
+      id: clinicReviews.id,
+      clinicId: clinicReviews.clinicId,
+      userName: clinicReviews.userName,
+      userEmail: clinicReviews.userEmail,
+      petType: clinicReviews.petType,
+      rating: clinicReviews.rating,
+      reviewText: clinicReviews.reviewText,
+      createdAt: clinicReviews.createdAt,
+      clinicName: vetClinics.name,
+      clinicArea: vetClinics.area,
+      clinicCity: vetClinics.city,
+      clinicImageUrl: vetClinics.imageUrl,
+      veterinarianName: vetClinics.veterinarianName,
+    })
+    .from(clinicReviews)
+    .leftJoin(vetClinics, eq(clinicReviews.clinicId, vetClinics.id));
+
+    if (conditions.length > 0) {
+      queryBuilder = queryBuilder.where(and(...conditions)) as any;
+    }
+
+    const reviews = await queryBuilder
+      .orderBy(desc(clinicReviews.createdAt))
+      .limit(limitVal)
+      .offset(offsetVal);
+
+    const mapped = reviews.map(r => ({
+      id: r.id,
+      clinicId: r.clinicId,
+      userName: r.userName,
+      userEmail: r.userEmail,
+      petType: r.petType,
+      rating: r.rating,
+      reviewText: r.reviewText,
+      date: r.createdAt ? r.createdAt.toISOString().split('T')[0] : getISTDate(),
+      clinicName: r.clinicName || 'Unknown Clinic',
+      clinicArea: r.clinicArea || '',
+      clinicCity: r.clinicCity || '',
+      clinicImageUrl: r.clinicImageUrl || '',
+      veterinarianName: r.veterinarianName || '',
+    }));
+    
+    res.json(mapped);
+  } catch (err: any) {
+    console.error('Get global reviews error:', err);
+    res.status(500).json({ error: 'Failed to fetch reviews.' });
+  }
+});
+
+
 // ========================
 // PROTECTED API ROUTES (JWT required)
 // ========================
