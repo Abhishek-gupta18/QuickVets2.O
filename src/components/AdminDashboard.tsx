@@ -174,6 +174,7 @@ export default function AdminDashboard({ currentUser, clinics, bookings, emergen
   const [signedUrlState, setSignedUrlState] = useState<{ loading: boolean; url: string | null; error: string | null }>({
     loading: false, url: null, error: null,
   });
+  const [downloadingDoc, setDownloadingDoc] = useState(false);
   const [analytics, setAnalytics] = useState<AdminAnalyticsData | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
 
@@ -204,6 +205,60 @@ export default function AdminDashboard({ currentUser, clinics, bookings, emergen
       setSignedUrlState({ loading: false, url: signedUrl, error: null });
     } catch (err: any) {
       setSignedUrlState({ loading: false, url: null, error: err.message || 'Could not load document.' });
+    }
+  };
+
+  /**
+   * Triggers a real file download for a Cloudinary authenticated document.
+   *
+   * Why not use <a download>?
+   * The HTML download attribute is ignored for cross-origin URLs. The server's
+   * /download route generates a signed attachment URL and redirects the browser
+   * to it — Cloudinary responds with Content-Disposition: attachment, which
+   * causes the browser to save the file instead of opening it.
+   */
+  const triggerDownload = async (document: VetDocument) => {
+    if (!document.cloudinaryPublicId) {
+      // Legacy dataUrl — use the old link approach
+      if (document.dataUrl) {
+        const a = window.document.createElement('a');
+        a.href = document.dataUrl;
+        a.download = document.fileName;
+        a.click();
+      }
+      return;
+    }
+
+    setDownloadingDoc(true);
+    try {
+      const apiBase = (import.meta as any).env?.VITE_API_URL || '';
+      const token = localStorage.getItem('vetfinder_token');
+      const encodedId = btoa(document.cloudinaryPublicId).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+
+      // Fetch through our proxy — server redirects to Cloudinary attachment URL
+      // We follow the redirect and get the file bytes
+      const res = await fetch(
+        `${apiBase}/api/documents/${encodedId}/download?resourceType=${document.resourceType || 'image'}`,
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+      );
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || 'Download failed.');
+      }
+
+      // Create a blob URL and click it — works for any origin
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const a = window.document.createElement('a');
+      a.href = objectUrl;
+      a.download = document.fileName;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
+    } catch (err: any) {
+      alert(`Download failed: ${err.message || 'Unknown error'}`);
+    } finally {
+      setDownloadingDoc(false);
     }
   };
 
@@ -793,14 +848,23 @@ export default function AdminDashboard({ currentUser, clinics, bookings, emergen
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                {signedUrlState.url && (
-                  <a
-                    href={signedUrlState.url}
-                    download={selectedDocument.document.fileName}
-                    className="px-3 py-2 rounded-xl bg-slate-900 text-white text-xs font-black flex items-center gap-1.5"
+                {(signedUrlState.url || selectedDocument.document.cloudinaryPublicId) && (
+                  <button
+                    onClick={() => triggerDownload(selectedDocument.document)}
+                    disabled={downloadingDoc}
+                    className="px-3 py-2 rounded-xl bg-slate-900 text-white text-xs font-black flex items-center gap-1.5 disabled:opacity-60"
                   >
-                    <Download className="w-4 h-4" /> Download
-                  </a>
+                    {downloadingDoc ? (
+                      <>
+                        <div className="w-3.5 h-3.5 rounded-full border-2 border-white/40 border-t-white animate-spin" />
+                        Downloading…
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-4 h-4" /> Download
+                      </>
+                    )}
+                  </button>
                 )}
                 <button
                   onClick={() => { setSelectedDocument(null); setSignedUrlState({ loading: false, url: null, error: null }); }}

@@ -1127,10 +1127,50 @@ app.delete('/api/documents/:publicId', authenticateToken, async (req: any, res: 
 
 /**
  * GET /api/documents/:publicId/signed-url
- * Generate a short-lived signed URL for admin document viewing.
+ * Generate a short-lived signed URL for admin document viewing (or downloading).
  * Admin only. publicId must be base64url-encoded.
+ * Query params:
+ *   resourceType = 'raw' | 'image'
+ *   download     = 'true'  → generates attachment URL (forces file download)
  */
 app.get('/api/documents/:publicId/signed-url', authenticateToken, requireRole('admin'), async (req: any, res: any) => {
+  try {
+    if (!isCloudinaryConfigured()) {
+      return res.status(503).json({ error: 'Document storage is not configured on this server.' });
+    }
+
+    const publicId = Buffer.from(req.params.publicId, 'base64url').toString('utf8');
+    const resourceType = (req.query.resourceType === 'raw' ? 'raw' : 'image') as 'raw' | 'image';
+    const asAttachment = req.query.download === 'true';
+
+    if (!publicId || !publicId.startsWith('quickvet/vets/')) {
+      return res.status(400).json({ error: 'Invalid document reference.' });
+    }
+
+    const result = generateSignedUrl(publicId, resourceType, asAttachment);
+    res.json(result);
+  } catch (err: any) {
+    console.error('[Documents] Signed URL error:', err);
+    res.status(500).json({ error: err.message || 'Failed to generate signed URL.' });
+  }
+});
+
+/**
+ * GET /api/documents/:publicId/download
+ * Forces a file download by generating a signed attachment URL and redirecting to it.
+ * Admin only. publicId must be base64url-encoded.
+ *
+ * Why redirect instead of returning JSON?
+ * The browser's <a download> attribute is ignored for cross-origin URLs.
+ * By redirecting here, the browser hits Cloudinary directly with
+ * Content-Disposition: attachment set, which triggers a real file download.
+ *
+ * NOTE: This uses a short-lived token in query string — acceptable because:
+ *  - The URL expires in 1 hour
+ *  - The asset is private (authenticated type)
+ *  - This pattern is standard for CDN-based downloads
+ */
+app.get('/api/documents/:publicId/download', authenticateToken, requireRole('admin'), async (req: any, res: any) => {
   try {
     if (!isCloudinaryConfigured()) {
       return res.status(503).json({ error: 'Document storage is not configured on this server.' });
@@ -1143,13 +1183,18 @@ app.get('/api/documents/:publicId/signed-url', authenticateToken, requireRole('a
       return res.status(400).json({ error: 'Invalid document reference.' });
     }
 
-    const result = generateSignedUrl(publicId, resourceType);
-    res.json(result);
+    // Generate signed URL with attachment=true → Cloudinary sends Content-Disposition: attachment
+    const { signedUrl } = generateSignedUrl(publicId, resourceType, true);
+
+    // Redirect browser to Cloudinary — it will receive Content-Disposition: attachment
+    // and the browser will trigger a native file download dialog
+    res.redirect(302, signedUrl);
   } catch (err: any) {
-    console.error('[Documents] Signed URL error:', err);
-    res.status(500).json({ error: err.message || 'Failed to generate signed URL.' });
+    console.error('[Documents] Download redirect error:', err);
+    res.status(500).json({ error: err.message || 'Failed to generate download link.' });
   }
 });
+
 
 
 // ANALYTICS: Admin dashboard

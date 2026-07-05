@@ -224,10 +224,12 @@ export interface SignedUrlResult {
  *
  * @param publicId     - Cloudinary public_id
  * @param resourceType - 'raw' for PDFs, 'image' for images
+ * @param attachment   - If true, Cloudinary sends Content-Disposition: attachment → forces download
  */
 export function generateSignedUrl(
   publicId: string,
-  resourceType: 'raw' | 'image' = 'image'
+  resourceType: 'raw' | 'image' = 'image',
+  attachment = false
 ): SignedUrlResult {
   ensureInitialised();
 
@@ -237,7 +239,7 @@ export function generateSignedUrl(
     resource_type: resourceType,
     type: 'authenticated',
     expires_at: expiresAtTimestamp,
-    attachment: false,
+    attachment,
   });
 
   return {
