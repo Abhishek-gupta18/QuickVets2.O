@@ -386,7 +386,7 @@ export default function AdminDashboard({ currentUser, clinics, bookings, emergen
     { id: 'verification', label: 'Vet Verification', icon: ClipboardCheck, count: stats.pendingVerifications },
     { id: 'performance', label: 'Performance', icon: Gauge },
     { id: 'complaints', label: 'Reviews & Complaints', icon: MessageSquareWarning, count: complaints.length },
-    { id: 'emergencies', label: 'Emergency Monitor', icon: AlertTriangle, count: stats.emergencyRequests },
+    { id: 'emergencies', label: 'Emergency Monitor', icon: AlertTriangle },
     { id: 'security', label: 'Security Logs', icon: Lock },
   ] as const;
 
@@ -781,25 +781,13 @@ export default function AdminDashboard({ currentUser, clinics, bookings, emergen
 
             {activeTab === 'emergencies' && (
               <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-5">
-                <h3 className="font-display font-black text-2xl text-slate-900">Emergency Request Monitoring</h3>
-                {emergencies.length === 0 ? (
-                  <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-10 text-center text-sm text-slate-500">No emergency records are currently loaded for this admin session.</div>
-                ) : emergencies.map((emergency) => (
-                  <div key={emergency.id} className="rounded-3xl border border-slate-100 p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                    <div className="space-y-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-black text-slate-900">{emergency.petName} · {emergency.petType}</span>
-                        {renderStatusBadge(emergency.status)}
-                      </div>
-                      <p className="text-xs text-slate-500">{emergency.address}</p>
-                      <p className="text-xs font-bold text-slate-700">{emergency.description}</p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <span className="px-3 py-2 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold text-slate-600">{emergency.acceptedByClinicName || 'Unassigned'}</span>
-                      <button className="px-3 py-2 bg-slate-900 text-white rounded-xl text-xs font-black">Reassign</button>
-                    </div>
-                  </div>
-                ))}
+                <div className="space-y-1">
+                  <h3 className="font-display font-black text-2xl text-slate-900">Emergency Request Monitoring</h3>
+                  <p className="text-xs text-slate-500">Emergency monitor data has been removed from this view.</p>
+                </div>
+                <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-10 text-center text-sm text-slate-500">
+                  No emergency monitor data is currently displayed.
+                </div>
               </div>
             )}
 
