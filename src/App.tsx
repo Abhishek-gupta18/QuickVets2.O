@@ -545,69 +545,182 @@ export default function App() {
         {/* VIEW 2: MAP FIND CLINICS VIEW */}
         {activeTab === 'find_vets' && (
           <motion.div key="find_vets" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-              <div className="lg:col-span-5 flex flex-col space-y-4 lg:sticky lg:top-24 lg:max-h-[calc(100vh-8rem)] self-start min-h-0">
-                <div className="bg-white p-5 rounded-3xl border border-green-100 shadow-sm space-y-4 flex-shrink-0 text-left">
-                  <h3 className="font-display font-black text-lg text-gray-800">Advanced Locator Filters</h3>
-                  <input type="text" placeholder="Search Clinic Name..." value={searchName} onChange={(e) => setSearchName(e.target.value)}
-                    className="w-full bg-slate-50 p-2.5 border rounded-xl text-xs sm:text-sm focus:outline-none focus:border-[#58B368] font-semibold" />
-                  <div className="flex flex-col justify-center">
-                    <div className="flex justify-between text-[10px] font-black uppercase text-gray-400">
-                      <span>Search Range</span><span className="text-[#2F855A]">{searchRadius} km</span>
-                    </div>
-                    <input type="range" min="2" max="50" step="2" value={searchRadius} onChange={(e) => setSearchRadius(parseInt(e.target.value))} className="w-full mt-1.5 accent-[#58B368]" />
+            className="flex-grow">
+            <div className="flex flex-col lg:flex-row h-[calc(100vh-80px)]">
+              {/* LEFT: Filter Sidebar + Clinic Cards */}
+              <div className="lg:w-[440px] xl:w-[480px] flex-shrink-0 flex flex-col border-r border-slate-100 bg-white overflow-hidden">
+                {/* Search + Stats Bar */}
+                <div className="p-4 border-b border-slate-100 space-y-3">
+                  <div className="relative">
+                    <Search className="absolute left-3.5 top-3 w-4 h-4 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Search clinics, vets, or areas..."
+                      value={searchName}
+                      onChange={(e) => setSearchName(e.target.value)}
+                      className="w-full bg-slate-50 py-2.5 pl-10 pr-4 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-[#58B368] focus:ring-2 focus:ring-green-100 font-medium"
+                    />
                   </div>
-                  <div className="flex flex-wrap items-center gap-2 text-[10px] text-gray-500 pt-1.5 border-t border-green-100">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-500 font-semibold">{filteredClinics.length} clinics found</span>
+                    <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
+                      <MapPin className="w-3 h-3 text-[#58B368]" />
+                      <span className="font-semibold">Within {searchRadius} km</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Filters */}
+                <div className="p-4 border-b border-slate-100 space-y-3">
+                  {/* Distance Slider */}
+                  <div>
+                    <div className="flex justify-between text-[10px] font-black uppercase text-slate-400 mb-1.5">
+                      <span>Distance</span>
+                      <span className="text-[#58B368]">{searchRadius} km</span>
+                    </div>
+                    <input type="range" min="2" max="50" step="2" value={searchRadius} onChange={(e) => setSearchRadius(parseInt(e.target.value))} className="w-full accent-[#58B368] h-1.5" />
+                  </div>
+
+                  {/* Quick Filters */}
+                  <div className="flex flex-wrap gap-2">
                     {[
-                      { label: '🟢 Open Now', active: filterOpenNow, toggle: () => setFilterOpenNow(!filterOpenNow) },
-                      { label: '🩹 Emergency Unit', active: filterEmergency, toggle: () => setFilterEmergency(!filterEmergency) },
-                      { label: '🏠 Home Doc', active: filterHomeVisit, toggle: () => setFilterHomeVisit(!filterHomeVisit) },
+                      { label: 'Open Now', active: filterOpenNow, toggle: () => setFilterOpenNow(!filterOpenNow), emoji: '🟢' },
+                      { label: '24/7 Emergency', active: filterEmergency, toggle: () => setFilterEmergency(!filterEmergency), emoji: '🚑' },
+                      { label: 'Home Visit', active: filterHomeVisit, toggle: () => setFilterHomeVisit(!filterHomeVisit), emoji: '🏠' },
+                      { label: '★ Top Rated', active: filterHighestRated, toggle: () => setFilterHighestRated(!filterHighestRated), emoji: '⭐' },
                     ].map((btn) => (
                       <button key={btn.label} onClick={btn.toggle}
-                        className={`px-2 py-1.5 rounded-lg border font-bold transition-colors cursor-pointer ${btn.active ? 'bg-green-50 border-[#58B368] text-[#2F855A]' : 'bg-white text-gray-500'}`}>
-                        {btn.label}
+                        className={`px-3 py-1.5 rounded-xl text-[11px] font-bold border transition-all cursor-pointer flex items-center gap-1.5 ${
+                          btn.active ? 'bg-[#58B368] border-[#58B368] text-white shadow-sm' : 'bg-white border-slate-200 text-slate-600 hover:border-green-300'
+                        }`}>
+                        <span>{btn.emoji}</span> {btn.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Pet Type Pills */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {['All', 'Dog', 'Cat', 'Bird', 'Rabbit', 'Exotics'].map((spec) => (
+                      <button key={spec} onClick={() => setFilterSpecialist(spec)}
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                          filterSpecialist === spec ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                        }`}>
+                        {spec}
                       </button>
                     ))}
                   </div>
                 </div>
 
-
-                <div className="flex-1 space-y-3.5 pr-1 lg:overflow-y-auto lg:overscroll-contain lg:pb-2 lg:min-h-0">
+                {/* Clinic Cards List */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-3">
                   {filteredClinics.length === 0 ? (
-                    <div className="bg-white rounded-3xl p-8 border border-green-100 text-center text-slate-400 text-xs">No results match filters.</div>
-                  ) : (
-                    filteredClinics.map((clinic) => (
-                      <div key={clinic.id} onClick={() => setSelectedClinicId(clinic.id)}
-                        className={`p-4 bg-white border rounded-2xl cursor-pointer hover:border-green-200 text-left space-y-1.5 shadow-sm transition-all ${
-                          selectedClinicId === clinic.id ? 'border-[#58B368] ring-2 ring-[#58B368]/15 bg-green-50/50' : 'border-green-100'
-                        }`}>
-                        <div className="flex justify-between items-start gap-1">
-                          <h4 className="font-display font-bold text-sm text-gray-800 line-clamp-1">{clinic.name}</h4>
-                          <span className="text-xs font-bold text-gray-700 flex-shrink-0">★ {clinic.rating}</span>
-                        </div>
-                        <p className="text-[11px] text-gray-400 line-clamp-1">{clinic.address}</p>
-                        <div className="flex items-center gap-2 text-[10px] text-slate-500">
-                          <span className="font-bold text-slate-700">📍 {clinic.area}</span><span>•</span><span>{clinic.workingHours}</span>
-                        </div>
-                        <div className="pt-2 border-t flex gap-2">
-                          <button onClick={(e) => { e.stopPropagation(); setBookingClinic(clinic); }}
-                            className="bg-[#58B368] text-white text-[10px] font-bold px-3 py-1 rounded-lg">Book Visit</button>
-                          <button onClick={(e) => { e.stopPropagation(); setNavigatingToClinicId(navigatingToClinicId === clinic.id ? null : clinic.id); }}
-                            className="bg-slate-50 border text-slate-600 text-[10px] font-bold px-3 py-1 rounded-lg">
-                            {navigatingToClinicId === clinic.id ? 'Stop Route' : 'Navigate Path'}
-                          </button>
-                        </div>
+                    <div className="flex flex-col items-center justify-center py-16 text-center">
+                      <div className="w-20 h-20 rounded-3xl bg-slate-100 flex items-center justify-center mb-4">
+                        <Search className="w-8 h-8 text-slate-300" />
                       </div>
-                    ))
+                      <h4 className="font-display font-black text-lg text-slate-700">No clinics found</h4>
+                      <p className="text-sm text-slate-400 max-w-[240px] mt-2">Try expanding your search radius or adjusting filters to see more results.</p>
+                    </div>
+                  ) : (
+                    filteredClinics.map((clinic) => {
+                      const distance = userLocation ? calculateHaversineDistance(userLocation.lat, userLocation.lng, clinic.latitude, clinic.longitude) : null;
+                      return (
+                        <div
+                          key={clinic.id}
+                          onClick={() => setSelectedClinicId(clinic.id)}
+                          className={`group bg-white border rounded-2xl overflow-hidden cursor-pointer transition-all duration-200 hover:shadow-md ${
+                            selectedClinicId === clinic.id ? 'border-[#58B368] ring-2 ring-[#58B368]/10 shadow-md' : 'border-slate-150 hover:border-green-200'
+                          }`}
+                        >
+                          {/* Card Image */}
+                          <div className="relative h-28 overflow-hidden">
+                            <img
+                              src={clinic.imageUrl || 'https://images.unsplash.com/photo-1584132967334-10e028bd69f7?auto=format&fit=crop&q=80&w=400'}
+                              alt={clinic.name}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            />
+                            <div className="absolute top-2 left-2 flex gap-1.5">
+                              {clinic.hasEmergency && (
+                                <span className="px-2 py-0.5 bg-rose-500 text-white text-[9px] font-black rounded-md shadow-sm">24/7</span>
+                              )}
+                              {clinic.hasHomeVisit && (
+                                <span className="px-2 py-0.5 bg-blue-500 text-white text-[9px] font-black rounded-md shadow-sm">Home Visit</span>
+                              )}
+                            </div>
+                            {clinic.verificationStatus === 'approved' && (
+                              <div className="absolute top-2 right-2 px-2 py-0.5 bg-white/90 backdrop-blur text-green-700 text-[9px] font-black rounded-md flex items-center gap-1">
+                                <ShieldAlert className="w-3 h-3" /> Verified
+                              </div>
+                            )}
+                            {distance !== null && (
+                              <div className="absolute bottom-2 right-2 px-2 py-0.5 bg-black/60 backdrop-blur text-white text-[9px] font-bold rounded-md">
+                                {distance} km
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Card Body */}
+                          <div className="p-3.5 space-y-2">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <h4 className="font-display font-bold text-sm text-slate-900 leading-tight line-clamp-1">{clinic.name}</h4>
+                                <p className="text-[11px] text-slate-400 mt-0.5">{clinic.veterinarianName || clinic.area}, {clinic.city}</p>
+                              </div>
+                              <div className="flex items-center gap-1 flex-shrink-0 bg-amber-50 px-2 py-0.5 rounded-lg">
+                                <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                                <span className="text-xs font-black text-amber-700">{clinic.rating.toFixed(1)}</span>
+                              </div>
+                            </div>
+
+                            {/* Specialties */}
+                            <div className="flex flex-wrap gap-1">
+                              {clinic.specialists.slice(0, 3).map(spec => (
+                                <span key={spec} className="px-1.5 py-0.5 bg-green-50 text-green-700 text-[9px] font-bold rounded border border-green-100">{spec}</span>
+                              ))}
+                              <span className="px-1.5 py-0.5 bg-slate-50 text-slate-500 text-[9px] font-bold rounded border border-slate-100">{clinic.workingHours}</span>
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex gap-2 pt-1.5">
+                              <button onClick={(e) => { e.stopPropagation(); setBookingClinic(clinic); }}
+                                className="flex-1 py-2 bg-[#58B368] hover:bg-green-600 text-white text-[10px] font-black rounded-xl transition-colors text-center">
+                                Book Appointment
+                              </button>
+                              <button onClick={(e) => { e.stopPropagation(); setNavigatingToClinicId(navigatingToClinicId === clinic.id ? null : clinic.id); }}
+                                className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold rounded-xl transition-colors flex items-center gap-1">
+                                <MapPin className="w-3 h-3" />
+                                {navigatingToClinicId === clinic.id ? 'Stop' : 'Route'}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
                   )}
                 </div>
               </div>
 
-              <div className="lg:col-span-7">
-                <div className="w-full h-[360px] sm:h-[430px] lg:h-[calc(100vh-8rem)] lg:max-h-[680px] min-h-[340px] rounded-3xl overflow-hidden border border-green-100 shadow-sm">
-                  <InteractiveMap clinics={filteredClinics} selectedClinicId={selectedClinicId} onSelectClinic={setSelectedClinicId}
-                    userLocation={userLocation} searchRadius={searchRadius} navigatingToClinicId={navigatingToClinicId} />
+              {/* RIGHT: Full Map */}
+              <div className="flex-1 relative min-h-[400px] lg:min-h-0">
+                <InteractiveMap clinics={filteredClinics} selectedClinicId={selectedClinicId} onSelectClinic={setSelectedClinicId}
+                  userLocation={userLocation} searchRadius={searchRadius} navigatingToClinicId={navigatingToClinicId} />
+
+                {/* Floating map stats */}
+                <div className="absolute top-4 left-4 z-[999] bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-green-100 shadow-lg flex items-center gap-4 pointer-events-none">
+                  <div className="text-center">
+                    <span className="block text-sm font-black text-slate-900">{filteredClinics.length}</span>
+                    <span className="text-[9px] text-slate-400 font-bold uppercase">Clinics</span>
+                  </div>
+                  <div className="w-px h-7 bg-slate-200" />
+                  <div className="text-center">
+                    <span className="block text-sm font-black text-green-600">{filteredClinics.filter(c => c.isOpenNow).length}</span>
+                    <span className="text-[9px] text-slate-400 font-bold uppercase">Open Now</span>
+                  </div>
+                  <div className="w-px h-7 bg-slate-200" />
+                  <div className="text-center">
+                    <span className="block text-sm font-black text-rose-500">{filteredClinics.filter(c => c.hasEmergency).length}</span>
+                    <span className="text-[9px] text-slate-400 font-bold uppercase">Emergency</span>
+                  </div>
                 </div>
               </div>
             </div>
