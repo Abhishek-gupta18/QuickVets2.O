@@ -32,10 +32,12 @@ declare global {
 }
 
 interface AuthModalProps {
-  type: 'login' | 'signup';
+  type: 'login' | 'signup' | 'reset_password';
   onClose: () => void;
   onSuccess: (user: UserType, token: string) => void;
-  onToggleType: (newType: 'login' | 'signup') => void;
+  onToggleType: (newType: 'login' | 'signup' | 'reset_password') => void;
+  resetToken?: string;
+  resetEmail?: string;
 }
 
 export default function AuthModal({
@@ -43,9 +45,12 @@ export default function AuthModal({
   onClose,
   onSuccess,
   onToggleType,
+  resetToken,
+  resetEmail,
 }: AuthModalProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [role, setRole] = useState<UserRole>('pet_owner');
@@ -56,6 +61,12 @@ export default function AuthModal({
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const apiBase = (import.meta as any).env?.VITE_API_URL || '';
+
+  useEffect(() => {
+    if (resetEmail) {
+      setEmail(resetEmail);
+    }
+  }, [resetEmail]);
 
   // Google OAuth
   const googleButtonRef = useRef<HTMLDivElement>(null);
@@ -70,6 +81,7 @@ export default function AuthModal({
       const res = await fetch(`${apiBase}/api/auth/google`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           credential: response.credential,
           role: type === 'signup' ? role : undefined,
@@ -88,7 +100,7 @@ export default function AuthModal({
       }
 
       // Successful Google auth
-      onSuccess(data.user, data.token);
+      onSuccess(data.user, '');
       onClose();
     } catch (err: any) {
       setErrorMsg(err.message);
@@ -136,10 +148,46 @@ export default function AuthModal({
     }
   }, [type, GOOGLE_CLIENT_ID, isForgotPassword, handleGoogleCredentialResponse]);
 
-  const handleResetPassword = async (e: React.FormEvent) => {
+  const handleForgotPasswordRequest = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
-      setErrorMsg('Both Email and a New Password are required.');
+    if (!email) {
+      setErrorMsg('Email is required.');
+      return;
+    }
+    setLoading(true);
+    setErrorMsg('');
+
+    try {
+      const apiBase = (import.meta as any).env?.VITE_API_URL || '';
+      const res = await fetch(`${apiBase}/api/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        throw new Error('Server returned an unexpected response. Please try again.');
+      }
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Request failed.');
+      }
+      setResetFinished(true);
+    } catch (err: any) {
+      setErrorMsg(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleExecutePasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!password || !confirmPassword) {
+      setErrorMsg('Both fields are required.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setErrorMsg('Passwords do not match.');
       return;
     }
     setLoading(true);
@@ -150,7 +198,7 @@ export default function AuthModal({
       const res = await fetch(`${apiBase}/api/auth/reset-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, newPassword: password }),
+        body: JSON.stringify({ token: resetToken, email: resetEmail, newPassword: password }),
       });
       const contentType = res.headers.get('content-type') || '';
       if (!contentType.includes('application/json')) {
@@ -158,7 +206,7 @@ export default function AuthModal({
       }
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Password reset request failed.');
+        throw new Error(data.error || 'Password update failed.');
       }
       setResetFinished(true);
     } catch (err: any) {
@@ -167,6 +215,7 @@ export default function AuthModal({
       setLoading(false);
     }
   };
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -183,6 +232,7 @@ export default function AuthModal({
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(payload),
       });
       const contentType = res.headers.get('content-type') || '';
@@ -194,7 +244,7 @@ export default function AuthModal({
         throw new Error(data.error || 'Authentication process failed.');
       }
       // Successful login/signup
-      onSuccess(data.user, data.token);
+      onSuccess(data.user, '');
       onClose();
     } catch (err: any) {
       setErrorMsg(err.message);
@@ -220,14 +270,18 @@ export default function AuthModal({
         {/* Title panel */}
         <div className="bg-gradient-to-r from-[#58B368] to-[#BFE7C4] px-6 py-5 text-white relative">
           <h3 className="font-display font-black text-xl">
-            {isForgotPassword 
-              ? 'Reset Account Password' 
-              : type === 'login' ? 'Welcome Back!' : 'Join the QuickVet Clan'}
+            {type === 'reset_password'
+              ? 'Update Account Password'
+              : isForgotPassword 
+                ? 'Request Password Reset' 
+                : type === 'login' ? 'Welcome Back!' : 'Join the QuickVet Clan'}
           </h3>
           <p className="text-white/80 text-xs mt-0.5">
-            {isForgotPassword 
-              ? 'Set your convenient passcode' 
-              : type === 'login' ? 'Book diagnostics and track care histories' : 'Get direct veterinary clinics alert linkages'}
+            {type === 'reset_password'
+              ? 'Set your new secure passcode'
+              : isForgotPassword 
+                ? 'Enter your email to request a reset link' 
+                : type === 'login' ? 'Book diagnostics and track care histories' : 'Get direct veterinary clinics alert linkages'}
           </p>
           <button
             onClick={onClose}
@@ -245,14 +299,18 @@ export default function AuthModal({
         )}
 
         {/* Password reset visual state finished */}
-        {isForgotPassword && resetFinished ? (
+        {((isForgotPassword || type === 'reset_password') && resetFinished) ? (
           <div className="p-8 text-center space-y-4">
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto text-green-600">
               <CheckCircle className="w-8 h-8" />
             </div>
-            <h4 className="font-display font-bold text-gray-800 text-lg">Password Changed Successfully!</h4>
+            <h4 className="font-display font-bold text-gray-800 text-lg">
+              {type === 'reset_password' ? 'Password Changed Successfully!' : 'Reset Link Sent Successfully!'}
+            </h4>
             <p className="text-gray-500 text-xs leading-relaxed max-w-sm mx-auto">
-              Your passcode was updated. Try log in using your updated credentials right away.
+              {type === 'reset_password' 
+                ? 'Your passcode was updated. Try log in using your updated credentials right away.'
+                : 'If an account is registered with this email address, a password reset link has been logged to the server console.'}
             </p>
             <button
               onClick={() => {
@@ -267,7 +325,7 @@ export default function AuthModal({
           </div>
         ) : isForgotPassword ? (
           /* Forgot password form */
-          <form onSubmit={handleResetPassword} className="p-6 space-y-4.5">
+          <form onSubmit={handleForgotPasswordRequest} className="p-6 space-y-4.5">
             <div>
               <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Your Account Registered Email</label>
               <div className="relative">
@@ -283,6 +341,25 @@ export default function AuthModal({
               </div>
             </div>
 
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3.5 bg-[#58B368] text-white font-black rounded-xl text-sm scale-transition hover:bg-green-600 disabled:opacity-50"
+            >
+              {loading ? 'Sending Reset Link...' : 'Request Password Reset'}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsForgotPassword(false)}
+              className="w-full text-center text-xs text-gray-500 font-bold hover:underline"
+            >
+              Back to Login Sign In
+            </button>
+          </form>
+        ) : type === 'reset_password' ? (
+          /* Execute Password Reset form */
+          <form onSubmit={handleExecutePasswordReset} className="p-6 space-y-4.5">
             <div>
               <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1 font-display">New Desired Password</label>
               <div className="relative">
@@ -299,6 +376,22 @@ export default function AuthModal({
               </div>
             </div>
 
+            <div>
+              <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1 font-display">Confirm New Password</label>
+              <div className="relative">
+                <input
+                  type="password"
+                  required
+                  minLength={4}
+                  placeholder="••••••••"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full p-3 pl-10 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-green-400"
+                />
+                <Lock className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+              </div>
+            </div>
+
             <button
               type="submit"
               disabled={loading}
@@ -309,10 +402,10 @@ export default function AuthModal({
 
             <button
               type="button"
-              onClick={() => setIsForgotPassword(false)}
+              onClick={() => onToggleType('login')}
               className="w-full text-center text-xs text-gray-500 font-bold hover:underline"
             >
-              Back to Login Sign In
+              Cancel and Back to Login
             </button>
           </form>
         ) : (

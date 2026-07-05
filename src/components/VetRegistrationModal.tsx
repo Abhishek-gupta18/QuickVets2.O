@@ -103,11 +103,10 @@ export default function VetRegistrationModal({
     if (existing?.cloudinaryPublicId) {
       try {
         const apiBase = (import.meta as any).env?.VITE_API_URL || '';
-        const token = localStorage.getItem('vetfinder_token');
         const encodedId = btoa(existing.cloudinaryPublicId).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
         await fetch(`${apiBase}/api/documents/${encodedId}?resourceType=${existing.resourceType || 'image'}`, {
           method: 'DELETE',
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          credentials: 'include',
         });
       } catch {
         // Non-fatal — proceed with new upload even if delete fails
@@ -119,7 +118,6 @@ export default function VetRegistrationModal({
     setUploadingDoc((prev) => ({ ...prev, [key]: true }));
     try {
       const apiBase = (import.meta as any).env?.VITE_API_URL || '';
-      const token = localStorage.getItem('vetfinder_token');
 
       const formData = new FormData();
       formData.append('file', file);
@@ -128,7 +126,7 @@ export default function VetRegistrationModal({
 
       const response = await fetch(`${apiBase}/api/documents/upload`, {
         method: 'POST',
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: 'include',
         body: formData,
       });
 

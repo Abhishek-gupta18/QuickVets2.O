@@ -1,15 +1,18 @@
 import 'dotenv/config';
 import express from 'express';
+import cookieParser from 'cookie-parser';
+import { rateLimit } from 'express-rate-limit';
 import crypto from 'crypto';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import bcrypt from 'bcryptjs';
 import multer from 'multer';
-import { eq, desc, and, sql } from 'drizzle-orm';
+import { eq, desc, and, or, sql } from 'drizzle-orm';
 import { db, testConnection, closePool, isDatabaseAvailable } from './src/server/db.js';
 import {
   vetClinics, users, pets, favoriteClinics,
   clinicReviews, bookings, emergencyRequests,
+  vaccinationAppointments, vaccinationRecords,
 } from './src/server/schema.js';
 import { signToken } from './src/server/jwt.js';
 import { authenticateToken, optionalAuthenticateToken, requireRole } from './src/server/middleware.js';
@@ -31,29 +34,46 @@ const upload = multer({
 });
 
 const app = express();
-const PORT = 3000;
+app.set('trust proxy', true);
+const PORT = process.env.PORT || 3000;
+
+// Rate limiter to prevent brute-force attacks on authentication endpoints
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  limit: 10, // Limit each IP to 10 requests per 15 minutes
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: {
+    error: 'Too many authentication attempts. Please try again after 15 minutes.'
+  },
+  handler: (req: any, res: any, next: any, options: any) => {
+    console.warn(`[Security Alert] Rate limit exceeded for IP ${req.ip} on route ${req.originalUrl}`);
+    res.status(429).json(options.message);
+  }
+});
 
 app.use(express.json());
+app.use(cookieParser());
 
-// CORS: Allow frontend (Vercel) to call backend (Render)
+// CORS: Allow only trusted frontend origins (specified in allowedOrigins or FRONTEND_URL env var)
 app.use((req, res, next) => {
   const allowedOrigins = [
     'http://localhost:3000',
     'http://localhost:5173',
-    process.env.FRONTEND_URL, // Set this to your Vercel URL in production
+    process.env.FRONTEND_URL, // Set this to the production frontend domain (e.g. Vercel) in the environment configuration
   ].filter(Boolean);
 
   const origin = req.headers.origin;
+  
   if (origin && allowedOrigins.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
-  } else if (!origin) {
-    // Same-origin requests (no Origin header) — allow
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    // Credentials are only allowed for specific, trusted origins (never with a wildcard '*')
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
   }
 
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Expose-Headers', 'Set-Cookie');
 
   if (req.method === 'OPTIONS') {
     return res.sendStatus(204);
@@ -70,7 +90,7 @@ app.use('/api', (req, res, next) => {
 // Database availability gate: return proper JSON error if DB is down
 // Skip for /api/health which is a diagnostic endpoint
 app.use('/api', (req, res, next) => {
-  if (req.path === '/health') return next();
+  if (req.path === '/health' || req.path === '/admin/system-health') return next();
   if (!isDatabaseAvailable) {
     return res.status(503).json({
       error: 'Database is currently unavailable. Please ensure DATABASE_URL is configured and the database is running.',
@@ -98,6 +118,30 @@ function getSessionExpiryForRole(role: string): number | undefined {
 
   return undefined;
 }
+
+/**
+ * Set the JWT as a secure httpOnly cookie on the response.
+ * maxAge mirrors the JWT expiry — falls back to 7 days for admin/vet sessions.
+ */
+function setAuthCookie(res: any, token: string, role: string): void {
+  const expirySeconds = getSessionExpiryForRole(role) ?? (7 * 24 * 60 * 60);
+  const isProduction = process.env.NODE_ENV === 'production';
+  res.cookie('quickvet_auth', token, {
+    httpOnly: true,
+    secure: isProduction, // HTTPS only in production; allow HTTP in dev
+    sameSite: isProduction ? 'strict' : 'lax',
+    maxAge: expirySeconds * 1000, // cookie takes milliseconds
+    path: '/',
+  });
+}
+
+/**
+ * Clear the auth cookie (called on logout or forced session invalidation).
+ */
+function clearAuthCookie(res: any): void {
+  res.clearCookie('quickvet_auth', { path: '/' });
+}
+
 
 function getISTTime(): string {
   return new Date().toLocaleTimeString('en-IN', {
@@ -264,8 +308,20 @@ async function upsertGoogleUser(profile: { email: string; name?: string; picture
 app.get('/api/health', (req, res) => {
   res.json({
     status: isDatabaseAvailable ? 'healthy' : 'degraded',
-    database: isDatabaseAvailable ? 'connected' : 'disconnected',
+    uptime: process.uptime(),
     timestamp: new Date().toISOString(),
+    version: '1.0.0'
+  });
+});
+
+// ADMIN SYSTEM DIAGNOSTICS (accessible only by admins)
+app.get('/api/admin/system-health', authenticateToken, requireRole('admin'), (req: any, res: any) => {
+  res.json({
+    status: isDatabaseAvailable ? 'healthy' : 'degraded',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+    version: '1.0.0',
+    database: isDatabaseAvailable ? 'connected' : 'disconnected',
     env: {
       DATABASE_URL: process.env.DATABASE_URL ? '✅ configured' : '❌ missing',
       JWT_SECRET: process.env.JWT_SECRET ? '✅ configured' : '❌ missing',
@@ -358,9 +414,11 @@ app.get('/api/auth/google/callback', async (req, res) => {
       getSessionExpiryForRole(userResponse.role)
     );
 
+    // Set the auth cookie on the response, then redirect to frontend.
+    // The token is NOT put in the URL (prevents XSS / referrer leakage).
+    setAuthCookie(res, token, userResponse.role);
     clearGoogleOAuthCookie(res);
     return res.redirect(buildAuthRedirectUrl(frontendUrl, {
-      oauth_token: token,
       oauth_provider: 'google',
       dashboard: getDashboardForRole(userResponse.role),
     }));
@@ -372,7 +430,7 @@ app.get('/api/auth/google/callback', async (req, res) => {
 });
 
 // AUTH: Sign Up
-app.post('/api/auth/signup', async (req, res) => {
+app.post('/api/auth/signup', authLimiter, async (req, res) => {
   try {
     const { email, name, password, role, phone } = req.body;
     if (!email || !name || !password || !role) {
@@ -405,7 +463,8 @@ app.post('/api/auth/signup', async (req, res) => {
 
     // Build user response (exclude passwordHash)
     const userResponse = await buildUserResponse(newUser.id);
-    res.status(201).json({ user: userResponse, token });
+    setAuthCookie(res, token, newUser.role);
+    res.status(201).json({ user: userResponse });
   } catch (err: any) {
     console.error('Signup error:', err);
     res.status(500).json({ error: 'Internal server error during signup.' });
@@ -414,7 +473,7 @@ app.post('/api/auth/signup', async (req, res) => {
 
 
 // AUTH: Login
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', authLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) {
@@ -439,35 +498,144 @@ app.post('/api/auth/login', async (req, res) => {
     );
 
     const userResponse = await buildUserResponse(user.id);
-    res.json({ user: userResponse, token });
+    setAuthCookie(res, token, user.role);
+    res.json({ user: userResponse });
   } catch (err: any) {
     console.error('Login error:', err);
     res.status(500).json({ error: 'Internal server error during login.' });
   }
 });
 
-// AUTH: Reset Password
-app.post('/api/auth/reset-password', async (req, res) => {
+// AUTH: Logout
+app.post('/api/auth/logout', (req, res) => {
+  clearAuthCookie(res);
+  res.json({ message: 'Logged out successfully.' });
+});
+
+
+// AUTH: Request Password Reset Link (Forgot Password)
+app.post('/api/auth/forgot-password', async (req, res) => {
   try {
-    const { email, newPassword } = req.body;
-    if (!email || !newPassword) {
-      return res.status(400).json({ error: 'Email and new password are required.' });
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required.' });
     }
 
     const normalizedEmail = normalizeEmail(email);
     const [user] = await db.select().from(users).where(eq(users.email, normalizedEmail)).limit(1);
+    
+    // Always return a generic success message to prevent email enumeration attacks
+    const genericResponse = { message: 'If an account exists with that email address, a password reset link has been sent.' };
+    
     if (!user) {
-      return res.status(404).json({ error: 'User does not exist with that email address.' });
+      return res.json(genericResponse);
     }
 
+    // Generate secure random token
+    const token = crypto.randomBytes(32).toString('hex');
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+    
+    // Set token expiration to 20 minutes
+    const expiresAt = new Date(Date.now() + 20 * 60 * 1000);
+
+    // Save hashed token and expiration in database
+    await db.update(users)
+      .set({
+        resetTokenHash: hashedToken,
+        resetTokenExpires: expiresAt,
+      } as any)
+      .where(eq(users.id, user.id));
+
+    // Simulate sending email by logging the reset link to the console
+    const frontendUrl = getFrontendUrl(req) || 'http://localhost:5173';
+    const resetLink = `${frontendUrl}?reset_token=${token}&reset_email=${encodeURIComponent(normalizedEmail)}`;
+    console.log('\n========================================');
+    console.log('📬  SIMULATED PASSWORD RESET EMAIL');
+    console.log(`To: ${normalizedEmail}`);
+    console.log(`Link: ${resetLink}`);
+    console.log('========================================\n');
+
+    res.json(genericResponse);
+  } catch (err: any) {
+    console.error('Forgot password error:', err);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+// AUTH: Verify Password Reset Token Validity
+app.post('/api/auth/verify-reset-token', async (req, res) => {
+  try {
+    const { token, email } = req.body;
+    if (!token || !email) {
+      return res.status(400).json({ error: 'Token and email are required.' });
+    }
+
+    const normalizedEmail = normalizeEmail(email);
+    const [user] = await db.select().from(users).where(eq(users.email, normalizedEmail)).limit(1);
+    if (!user || !user.resetTokenHash || !user.resetTokenExpires) {
+      return res.status(400).json({ error: 'Invalid or expired password reset link.' });
+    }
+
+    // Check expiration
+    if (new Date() > new Date(user.resetTokenExpires)) {
+      return res.status(400).json({ error: 'Password reset link has expired.' });
+    }
+
+    // Compare token hash
+    const incomingHash = crypto.createHash('sha256').update(token).digest('hex');
+    if (user.resetTokenHash !== incomingHash) {
+      return res.status(400).json({ error: 'Invalid or expired password reset link.' });
+    }
+
+    res.json({ valid: true });
+  } catch (err: any) {
+    console.error('Verify reset token error:', err);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+// AUTH: Reset Password (Execute Reset)
+app.post('/api/auth/reset-password', authLimiter, async (req, res) => {
+  try {
+    const { token, email, newPassword } = req.body;
+    if (!token || !email || !newPassword) {
+      return res.status(400).json({ error: 'Token, email, and new password are required.' });
+    }
+
+    const normalizedEmail = normalizeEmail(email);
+    const [user] = await db.select().from(users).where(eq(users.email, normalizedEmail)).limit(1);
+    if (!user || !user.resetTokenHash || !user.resetTokenExpires) {
+      return res.status(400).json({ error: 'Invalid or expired password reset link.' });
+    }
+
+    // Check expiration
+    if (new Date() > new Date(user.resetTokenExpires)) {
+      return res.status(400).json({ error: 'Password reset link has expired.' });
+    }
+
+    // Compare token hash
+    const incomingHash = crypto.createHash('sha256').update(token).digest('hex');
+    if (user.resetTokenHash !== incomingHash) {
+      return res.status(400).json({ error: 'Invalid or expired password reset link.' });
+    }
+
+    // Update password
     const newHash = await bcrypt.hash(newPassword, 10);
-    await db.update(users).set({ passwordHash: newHash }).where(eq(users.id, user.id));
+    await db.update(users)
+      .set({
+        passwordHash: newHash,
+        resetTokenHash: null,
+        resetTokenExpires: null,
+      } as any)
+      .where(eq(users.id, user.id));
+
     res.json({ message: 'Password updated successfully.' });
   } catch (err: any) {
     console.error('Reset password error:', err);
     res.status(500).json({ error: 'Internal server error.' });
   }
 });
+
 
 
 // AUTH: Google OAuth - Sign in or Sign up with Google ID Token
@@ -524,7 +692,8 @@ app.post('/api/auth/google', async (req, res) => {
         getSessionExpiryForRole(effectiveRole)
       );
       const userResponse = await buildUserResponse(existingUser.id);
-      return res.json({ user: userResponse, token });
+      setAuthCookie(res, token, effectiveRole);
+      return res.json({ user: userResponse });
     }
 
     // New user — create account with role from signup form (defaults to pet_owner)
@@ -552,7 +721,8 @@ app.post('/api/auth/google', async (req, res) => {
     );
 
     const userResponse = await buildUserResponse(newUser.id);
-    res.status(201).json({ user: userResponse, token });
+    setAuthCookie(res, token, newUser.role);
+    res.status(201).json({ user: userResponse });
   } catch (err: any) {
     console.error('Google OAuth error:', err);
     res.status(500).json({ error: 'Internal server error during Google authentication.' });
@@ -1331,10 +1501,6 @@ async function buildUserResponse(userId: string) {
 // VACCINATION APPOINTMENTS API
 // ========================
 
-// In-memory store for vaccination appointments (replace with DB table in production)
-const vaccinationAppointments: any[] = [];
-const vaccinationRecords: any[] = [];
-
 // Lazy-import Temporal client (non-blocking — app works without Temporal)
 let temporalModule: any = null;
 async function getTemporalModule() {
@@ -1357,42 +1523,53 @@ app.post('/api/vaccinations/appointments', authenticateToken, async (req: any, r
     }
 
     const id = `vacc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    const appointment = {
+    const [insertedAppt] = await db.insert(vaccinationAppointments).values({
       id,
-      petId, petName, petType,
+      petId,
+      petName,
+      petType,
       ownerId: req.user.id,
       ownerName: req.user.email,
       ownerEmail: req.user.email,
-      clinicId, clinicName,
-      vaccineName, vaccineType: vaccineType || 'core',
+      clinicId,
+      clinicName: clinicName || 'Veterinary Clinic',
+      vaccineName,
+      vaccineType: vaccineType || 'core',
       diseasesProtected: diseasesProtected || [],
-      scheduledDate, scheduledTime,
+      scheduledDate,
+      scheduledTime,
       status: 'scheduled',
       notes: notes || '',
       remindersSent: 0,
       workflowId: `vacc-wf-${id}`,
-      createdAt: new Date().toISOString(),
-    };
-
-    vaccinationAppointments.push(appointment);
+    } as any).returning();
 
     // Start Temporal workflow (non-blocking — gracefully degrades if Temporal is unavailable)
     const temporal = await getTemporalModule();
     if (temporal) {
       const workflowId = await temporal.startVaccinationWorkflow({
         appointmentId: id,
-        petName, petType,
+        petName,
+        petType,
         ownerEmail: req.user.email,
-        ownerName: appointment.ownerName,
-        clinicName, clinicId,
+        ownerName: insertedAppt.ownerName || req.user.email,
+        clinicName: insertedAppt.clinicName,
+        clinicId,
         vaccineName,
-        scheduledDate, scheduledTime,
+        scheduledDate,
+        scheduledTime,
         boosterIntervalDays: vaccineType === 'core' ? 365 : undefined,
       });
-      if (workflowId) appointment.workflowId = workflowId;
+      if (workflowId) {
+        const [updatedAppt] = await db.update(vaccinationAppointments)
+          .set({ workflowId } as any)
+          .where(eq(vaccinationAppointments.id, id))
+          .returning();
+        return res.status(201).json(updatedAppt);
+      }
     }
 
-    res.status(201).json(appointment);
+    res.status(201).json(insertedAppt);
   } catch (err: any) {
     console.error('Create vaccination appointment error:', err);
     res.status(500).json({ error: 'Failed to create vaccination appointment.' });
@@ -1402,9 +1579,15 @@ app.post('/api/vaccinations/appointments', authenticateToken, async (req: any, r
 // GET vaccination appointments for current user
 app.get('/api/vaccinations/appointments', authenticateToken, async (req: any, res: any) => {
   try {
-    const userAppts = vaccinationAppointments.filter(a => a.ownerId === req.user.id || a.ownerEmail === req.user.email);
+    const userAppts = await db.select().from(vaccinationAppointments)
+      .where(or(
+        eq(vaccinationAppointments.ownerId, req.user.id),
+        eq(vaccinationAppointments.ownerEmail, req.user.email)
+      ))
+      .orderBy(desc(vaccinationAppointments.createdAt));
     res.json(userAppts);
   } catch (err: any) {
+    console.error('Get user appointments error:', err);
     res.status(500).json({ error: 'Failed to fetch vaccination appointments.' });
   }
 });
@@ -1413,8 +1596,10 @@ app.get('/api/vaccinations/appointments', authenticateToken, async (req: any, re
 app.get('/api/vaccinations/appointments/all', authenticateToken, async (req: any, res: any) => {
   try {
     if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin access required.' });
-    res.json(vaccinationAppointments);
+    const allAppts = await db.select().from(vaccinationAppointments).orderBy(desc(vaccinationAppointments.createdAt));
+    res.json(allAppts);
   } catch (err: any) {
+    console.error('Get all appointments error:', err);
     res.status(500).json({ error: 'Failed to fetch all vaccination appointments.' });
   }
 });
@@ -1423,14 +1608,37 @@ app.get('/api/vaccinations/appointments/all', authenticateToken, async (req: any
 app.put('/api/vaccinations/appointments/:id/status', authenticateToken, async (req: any, res: any) => {
   try {
     const { status, administeredBy, batchNumber, nextBoosterDate } = req.body;
-    const appt = vaccinationAppointments.find(a => a.id === req.params.id);
+    const [appt] = await db.select().from(vaccinationAppointments).where(eq(vaccinationAppointments.id, req.params.id)).limit(1);
     if (!appt) return res.status(404).json({ error: 'Appointment not found.' });
 
-    appt.status = status;
-    appt.updatedAt = new Date().toISOString();
-    if (administeredBy) appt.administeredBy = administeredBy;
-    if (batchNumber) appt.batchNumber = batchNumber;
-    if (nextBoosterDate) appt.nextBoosterDate = nextBoosterDate;
+    // Validate status value
+    const allowedStatuses = ['scheduled', 'completed', 'cancelled', 'missed'];
+    if (!status || !allowedStatuses.includes(status)) {
+      return res.status(400).json({ error: `Invalid status. Allowed values are: ${allowedStatuses.join(', ')}` });
+    }
+
+    // Authorization checks: Owner OR Admin OR Veterinarian
+    const isOwner = appt.ownerId === req.user.id || appt.ownerEmail === req.user.email;
+    const isAdmin = req.user.role === 'admin';
+    const isVet = req.user.role === 'veterinarian';
+
+    if (!isOwner && !isAdmin && !isVet) {
+      console.warn(`[Security Alert] Unauthorized status update attempt on vaccination appointment ${req.params.id} by user ${req.user.email} (Role: ${req.user.role})`);
+      return res.status(403).json({ error: 'Access denied. You are not authorized to update this appointment.' });
+    }
+
+    const updateData: any = {
+      status,
+      updatedAt: new Date(),
+    };
+    if (administeredBy) updateData.administeredBy = administeredBy;
+    if (batchNumber) updateData.batchNumber = batchNumber;
+    if (nextBoosterDate) updateData.nextBoosterDate = nextBoosterDate;
+
+    const [updatedAppt] = await db.update(vaccinationAppointments)
+      .set(updateData as any)
+      .where(eq(vaccinationAppointments.id, req.params.id))
+      .returning();
 
     // Signal Temporal workflow based on status change
     const temporal = await getTemporalModule();
@@ -1444,7 +1652,7 @@ app.put('/api/vaccinations/appointments/:id/status', authenticateToken, async (r
 
     // If completed, create a vaccination record
     if (status === 'completed') {
-      const record = {
+      await db.insert(vaccinationRecords).values({
         id: `vrec-${Date.now()}`,
         petId: appt.petId,
         petName: appt.petName,
@@ -1455,14 +1663,13 @@ app.put('/api/vaccinations/appointments/:id/status', authenticateToken, async (r
         veterinarianName: administeredBy || 'Veterinarian',
         batchNumber: batchNumber || '',
         nextBoosterDate: nextBoosterDate || '',
-        notes: appt.notes,
-        createdAt: new Date().toISOString(),
-      };
-      vaccinationRecords.push(record);
+        notes: appt.notes || '',
+      } as any);
     }
 
-    res.json(appt);
+    res.json(updatedAppt);
   } catch (err: any) {
+    console.error('Update appointment status error:', err);
     res.status(500).json({ error: 'Failed to update appointment status.' });
   }
 });
@@ -1470,20 +1677,41 @@ app.put('/api/vaccinations/appointments/:id/status', authenticateToken, async (r
 // CANCEL vaccination appointment
 app.delete('/api/vaccinations/appointments/:id', authenticateToken, async (req: any, res: any) => {
   try {
-    const idx = vaccinationAppointments.findIndex(a => a.id === req.params.id);
-    if (idx === -1) return res.status(404).json({ error: 'Appointment not found.' });
+    const [appt] = await db.select().from(vaccinationAppointments).where(eq(vaccinationAppointments.id, req.params.id)).limit(1);
+    
+    // Check existence first.
+    if (!appt) {
+      return res.status(404).json({ error: 'Appointment not found.' });
+    }
 
-    vaccinationAppointments[idx].status = 'cancelled';
-    vaccinationAppointments[idx].updatedAt = new Date().toISOString();
+    // Authorization checks: Owner OR Admin OR Veterinarian
+    const isOwner = appt.ownerId === req.user.id || appt.ownerEmail === req.user.email;
+    const isAdmin = req.user.role === 'admin';
+    const isVet = req.user.role === 'veterinarian';
+
+    if (!isOwner && !isAdmin && !isVet) {
+      console.warn(`[Security Alert] Unauthorized cancel attempt on vaccination appointment ${req.params.id} by user ${req.user.email} (Role: ${req.user.role})`);
+      // Return 404 instead of 403 to prevent ID enumeration attacks
+      return res.status(404).json({ error: 'Appointment not found.' });
+    }
+
+    const [updatedAppt] = await db.update(vaccinationAppointments)
+      .set({
+        status: 'cancelled',
+        updatedAt: new Date(),
+      } as any)
+      .where(eq(vaccinationAppointments.id, req.params.id))
+      .returning();
 
     // Cancel Temporal workflow
     const temporal = await getTemporalModule();
-    if (temporal && vaccinationAppointments[idx].workflowId) {
-      await temporal.cancelVaccinationWorkflow(vaccinationAppointments[idx].workflowId);
+    if (temporal && appt.workflowId) {
+      await temporal.cancelVaccinationWorkflow(appt.workflowId);
     }
 
-    res.json({ message: 'Appointment cancelled.' });
+    res.json({ message: 'Appointment cancelled.', appointment: updatedAppt });
   } catch (err: any) {
+    console.error('Cancel appointment error:', err);
     res.status(500).json({ error: 'Failed to cancel appointment.' });
   }
 });
@@ -1491,9 +1719,12 @@ app.delete('/api/vaccinations/appointments/:id', authenticateToken, async (req: 
 // GET vaccination records for a pet
 app.get('/api/vaccinations/records/:petId', authenticateToken, async (req: any, res: any) => {
   try {
-    const records = vaccinationRecords.filter(r => r.petId === req.params.petId);
+    const records = await db.select().from(vaccinationRecords)
+      .where(eq(vaccinationRecords.petId, req.params.petId))
+      .orderBy(desc(vaccinationRecords.createdAt));
     res.json(records);
   } catch (err: any) {
+    console.error('Get vaccination records error:', err);
     res.status(500).json({ error: 'Failed to fetch vaccination records.' });
   }
 });

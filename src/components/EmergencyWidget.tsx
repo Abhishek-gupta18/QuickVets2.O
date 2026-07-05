@@ -68,14 +68,13 @@ export default function EmergencyWidget({
         latitude: 12.9716, 
         longitude: 77.5946 
       };
-      const token = localStorage.getItem('vetfinder_token');
       const apiBase = (import.meta as any).env?.VITE_API_URL || '';
       const res = await fetch(`${apiBase}/api/emergency`, { 
         method: 'POST', 
         headers: { 
           'Content-Type': 'application/json', 
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {}) 
         }, 
+        credentials: 'include', 
         body: JSON.stringify(payload) 
       });
       if (!res.ok) throw new Error('Failed');

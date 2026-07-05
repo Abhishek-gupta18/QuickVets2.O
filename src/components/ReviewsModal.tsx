@@ -55,14 +55,13 @@ export default function ReviewsModal({
 
     setPublishing(true);
     try {
-      const token = localStorage.getItem('vetfinder_token');
       const apiBase = (import.meta as any).env?.VITE_API_URL || '';
       const res = await fetch(`${apiBase}/api/clinics/${clinic.id}/reviews`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
+        credentials: 'include',
         body: JSON.stringify({
           userName: currentUser.name,
           userEmail: currentUser.email,

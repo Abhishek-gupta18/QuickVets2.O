@@ -1,11 +1,15 @@
 /**
  * Express middleware for JWT-based authentication and role-based authorization.
+ * Supports reading the JWT from either:
+ *   1. The httpOnly 'quickvet_auth' cookie (preferred — set by the server after login)
+ *   2. The 'Authorization: Bearer <token>' header (for API clients / test scripts)
  */
 import { verifyToken, JWTPayload } from './jwt.js';
 
 export interface AuthenticatedRequest {
   user?: JWTPayload;
   headers: any;
+  cookies: any;
   body: any;
   params: any;
   query: any;
@@ -13,12 +17,28 @@ export interface AuthenticatedRequest {
 }
 
 /**
- * Middleware that validates the JWT Bearer token from the Authorization header.
+ * Extract the JWT from the request.
+ * Cookie takes precedence over the Authorization header.
+ */
+function extractToken(req: any): string | null {
+  // 1. HTTP-only cookie (preferred)
+  if (req.cookies && req.cookies.quickvet_auth) {
+    return req.cookies.quickvet_auth;
+  }
+  // 2. Authorization: Bearer <token> header (API clients / test scripts)
+  const authHeader = req.headers['authorization'];
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    return authHeader.split(' ')[1];
+  }
+  return null;
+}
+
+/**
+ * Middleware that validates the JWT from cookie or Authorization header.
  * Attaches the decoded user payload to req.user on success.
  */
 export function authenticateToken(req: any, res: any, next: any): void {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // Bearer <token>
+  const token = extractToken(req);
 
   if (!token) {
     res.status(401).json({ error: 'Access token required. Please log in.' });
@@ -42,8 +62,7 @@ export function authenticateToken(req: any, res: any, next: any): void {
 }
 
 export function optionalAuthenticateToken(req: any, _res: any, next: any): void {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  const token = extractToken(req);
 
   if (!token) {
     req.user = undefined;

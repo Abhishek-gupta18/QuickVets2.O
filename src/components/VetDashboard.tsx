@@ -280,9 +280,8 @@ export default function VetDashboard({
     const loadAnalytics = async () => {
       try {
         const apiBase = (import.meta as any).env?.VITE_API_URL || '';
-        const token = localStorage.getItem('vetfinder_token');
         const res = await fetch(`${apiBase}/api/analytics/vet`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          credentials: 'include',
         });
 
         if (!res.ok) {

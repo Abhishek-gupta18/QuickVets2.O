@@ -24,7 +24,6 @@ import { motion, AnimatePresence } from 'motion/react';
 
 // ===== Auth Storage Keys =====
 const STORAGE_KEY_USER = 'vetfinder_user';
-const STORAGE_KEY_TOKEN = 'vetfinder_token';
 
 // ===== API Base URL =====
 // In development: empty string (same origin, Express serves both)
@@ -33,27 +32,19 @@ const API_BASE = import.meta.env.VITE_API_URL || '';
 
 
 // ===== Authenticated Fetch Helper =====
-function getStoredToken(): string | null {
-  return localStorage.getItem(STORAGE_KEY_TOKEN);
-}
-
-function authHeaders(): Record<string, string> {
-  const token = getStoredToken();
-  if (!token) return { 'Content-Type': 'application/json' };
-  return {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`,
-  };
-}
-
 async function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
   const fullUrl = url.startsWith('http') ? url : `${API_BASE}${url}`;
+  const isJsonBody = options.body && !(options.body instanceof FormData);
+
+  const headers = {
+    ...(isJsonBody ? { 'Content-Type': 'application/json' } : {}),
+    ...(options.headers || {}),
+  } as any;
+
   const res = await fetch(fullUrl, {
     ...options,
-    headers: {
-      ...authHeaders(),
-      ...(options.headers || {}),
-    },
+    credentials: 'include',
+    headers,
   });
   return res;
 }
@@ -91,7 +82,8 @@ export default function App() {
   const [emergencies, setEmergencies] = useState<EmergencyRequest[]>([]);
 
   // Modals Visibility triggers
-  const [authModalType, setAuthModalType] = useState<'login' | 'signup' | null>(null);
+  const [authModalType, setAuthModalType] = useState<'login' | 'signup' | 'reset_password' | null>(null);
+  const [resetParams, setResetParams] = useState<{ token: string; email: string } | null>(null);
   const [bookingClinic, setBookingClinic] = useState<VetClinic | null>(null);
   const [reviewsClinic, setReviewsClinic] = useState<VetClinic | null>(null);
 
@@ -110,12 +102,10 @@ export default function App() {
   const [navigatingToClinicId, setNavigatingToClinicId] = useState<string | null>(null);
 
 
-  // ===== Session Handling: Handle 401/403 by forcing logout =====
   const handleForceLogout = useCallback(() => {
     setCurrentUser(null);
     setSessionToken(null);
     localStorage.removeItem(STORAGE_KEY_USER);
-    localStorage.removeItem(STORAGE_KEY_TOKEN);
     setActiveTab('home');
   }, []);
 
@@ -216,18 +206,36 @@ export default function App() {
   useEffect(() => {
     requestUserLocation();
 
-    // Restore user session from persistent storage
-    const savedUser = localStorage.getItem(STORAGE_KEY_USER);
-    const savedToken = localStorage.getItem(STORAGE_KEY_TOKEN);
-    if (savedUser && savedToken) {
-      try {
-        setCurrentUser(JSON.parse(savedUser));
-        setSessionToken(savedToken);
-      } catch (err) {
-        console.error('Session parse error:', err);
-        handleForceLogout();
-      }
+    // Check for password reset tokens in the URL
+    const params = new URLSearchParams(window.location.search);
+    const resetToken = params.get('reset_token');
+    const resetEmail = params.get('reset_email');
+
+    if (resetToken && resetEmail) {
+      setResetParams({ token: resetToken, email: resetEmail });
+      setAuthModalType('reset_password');
+      // Clean query parameters from URL history for security
+      window.history.replaceState({}, document.title, window.location.pathname);
     }
+
+    // Verify session state using HTTP-only cookie
+    const checkSession = async () => {
+      try {
+        const res = await authFetch('/api/user/me');
+        if (res.ok) {
+          const user = await safeJson(res);
+          if (user) {
+            setCurrentUser(user);
+            localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(user));
+            return;
+          }
+        }
+      } catch (err) {
+        console.error('Session verify error:', err);
+      }
+      handleForceLogout();
+    };
+    checkSession();
   }, [handleForceLogout]);
 
 
@@ -241,8 +249,7 @@ export default function App() {
       if (cData && Array.isArray(cData)) setClinics(cData);
 
       // Bookings & Emergencies require auth
-      const token = getStoredToken();
-      if (token) {
+      if (currentUser) {
         const bRes = await authFetch('/api/bookings');
         if (bRes.status === 401 || bRes.status === 403) {
           handleForceLogout();
@@ -266,7 +273,7 @@ export default function App() {
     } catch (err) {
       console.warn('Backend REST fetch failure:', err);
     }
-  }, [handleForceLogout]);
+  }, [currentUser, handleForceLogout]);
 
   useEffect(() => {
     pullConfiguration();
@@ -276,11 +283,10 @@ export default function App() {
 
 
   // ===== Authentication Handlers =====
-  const handleAuthSuccess = useCallback((user: User, token: string) => {
+  const handleAuthSuccess = useCallback((user: User, _token?: string) => {
     setCurrentUser(user);
-    setSessionToken(token);
+    setSessionToken(null);
     localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(user));
-    localStorage.setItem(STORAGE_KEY_TOKEN, token);
 
     // Route to correct dashboard by role
     if (user.role === 'admin') {
@@ -301,10 +307,10 @@ export default function App() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const oauthToken = params.get('oauth_token');
+    const oauthProvider = params.get('oauth_provider');
     const oauthError = params.get('oauth_error');
 
-    if (!oauthToken && !oauthError) {
+    if (!oauthProvider && !oauthError) {
       return;
     }
 
@@ -317,12 +323,7 @@ export default function App() {
 
     const finishGoogleLogin = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/user/me`, {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${oauthToken}`,
-          },
-        });
+        const res = await authFetch('/api/user/me');
 
         if (!res.ok) {
           throw new Error('Google login could not be completed.');
@@ -333,7 +334,7 @@ export default function App() {
           throw new Error('Google login returned an invalid user profile.');
         }
 
-        handleAuthSuccess(user, oauthToken);
+        handleAuthSuccess(user);
         setAuthModalType(null);
       } catch (err) {
         console.error('Google OAuth handoff error:', err);
@@ -345,7 +346,12 @@ export default function App() {
     void finishGoogleLogin();
   }, [handleAuthSuccess, handleForceLogout]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await authFetch('/api/auth/logout', { method: 'POST' });
+    } catch (err) {
+      console.warn('Logout endpoint call failed:', err);
+    }
     handleForceLogout();
   };
 
@@ -703,7 +709,14 @@ export default function App() {
 
       {/* GLOBAL MODALS */}
       {authModalType && (
-        <AuthModal type={authModalType} onClose={() => setAuthModalType(null)} onSuccess={handleAuthSuccess} onToggleType={setAuthModalType} />
+        <AuthModal 
+          type={authModalType} 
+          onClose={() => { setAuthModalType(null); setResetParams(null); }} 
+          onSuccess={handleAuthSuccess} 
+          onToggleType={setAuthModalType}
+          resetToken={resetParams?.token}
+          resetEmail={resetParams?.email}
+        />
       )}
       {bookingClinic && (
         <BookingModal clinic={bookingClinic} currentUser={currentUser} onClose={() => setBookingClinic(null)}

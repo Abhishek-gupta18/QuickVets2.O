@@ -31,10 +31,10 @@ export default function VaccinationBooking({ vaccine, currentUser, clinics, onCl
     setError('');
     try {
       const apiBase = (import.meta as any).env?.VITE_API_URL || '';
-      const token = localStorage.getItem('vetfinder_token');
       const res = await fetch(`${apiBase}/api/vaccinations/appointments`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           petId: selectedPet.id, petName: selectedPet.name, petType: selectedPet.type,
           clinicId: selectedClinic.id, clinicName: selectedClinic.name,

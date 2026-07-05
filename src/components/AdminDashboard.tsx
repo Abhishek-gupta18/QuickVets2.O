@@ -126,11 +126,10 @@ export default function AdminDashboard({ currentUser, clinics, bookings, emergen
     setSignedUrlState({ loading: true, url: null, error: null });
     try {
       const apiBase = (import.meta as any).env?.VITE_API_URL || '';
-      const token = localStorage.getItem('vetfinder_token');
       const encodedId = btoa(document.cloudinaryPublicId).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
       const res = await fetch(
         `${apiBase}/api/documents/${encodedId}/signed-url?resourceType=${document.resourceType || 'image'}`,
-        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+        { credentials: 'include' }
       );
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -167,14 +166,13 @@ export default function AdminDashboard({ currentUser, clinics, bookings, emergen
     setDownloadingDoc(true);
     try {
       const apiBase = (import.meta as any).env?.VITE_API_URL || '';
-      const token = localStorage.getItem('vetfinder_token');
       const encodedId = btoa(document.cloudinaryPublicId).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 
       // Fetch through our proxy — server redirects to Cloudinary attachment URL
       // We follow the redirect and get the file bytes
       const res = await fetch(
         `${apiBase}/api/documents/${encodedId}/download?resourceType=${document.resourceType || 'image'}`,
-        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+        { credentials: 'include' }
       );
 
       if (!res.ok) {
@@ -203,9 +201,8 @@ export default function AdminDashboard({ currentUser, clinics, bookings, emergen
     const loadAnalytics = async () => {
       try {
         const apiBase = (import.meta as any).env?.VITE_API_URL || '';
-        const token = localStorage.getItem('vetfinder_token');
         const res = await fetch(`${apiBase}/api/analytics/admin`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          credentials: 'include',
         });
 
         if (!res.ok) {

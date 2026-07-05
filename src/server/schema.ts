@@ -74,6 +74,8 @@ export const users = pgTable('users', {
   phone: varchar('phone', { length: 30 }),
   avatarUrl: text('avatar_url'),
   clinicId: varchar('clinic_id', { length: 100 }).references(() => vetClinics.id, { onDelete: 'set null' }),
+  resetTokenHash: varchar('reset_token_hash', { length: 255 }),
+  resetTokenExpires: timestamp('reset_token_expires', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 }, (table) => ({
   emailIdx: index('idx_users_email').on(table.email),
@@ -173,6 +175,60 @@ export const emergencyRequests = pgTable('emergency_requests', {
 }));
 
 // ============================================================
+// TABLE: vaccination_appointments
+// ============================================================
+export const vaccinationAppointments = pgTable('vaccination_appointments', {
+  id: varchar('id', { length: 100 }).primaryKey(),
+  petId: varchar('pet_id', { length: 100 }).notNull().references(() => pets.id, { onDelete: 'cascade' }),
+  petName: varchar('pet_name', { length: 100 }).notNull(),
+  petType: varchar('pet_type', { length: 50 }).notNull(),
+  ownerId: varchar('owner_id', { length: 100 }).notNull().references(() => users.id, { onDelete: 'cascade' }),
+  ownerName: varchar('owner_name', { length: 100 }),
+  ownerEmail: varchar('owner_email', { length: 255 }).notNull(),
+  clinicId: varchar('clinic_id', { length: 100 }).notNull().references(() => vetClinics.id, { onDelete: 'restrict' }),
+  clinicName: varchar('clinic_name', { length: 255 }).notNull(),
+  vaccineName: varchar('vaccine_name', { length: 100 }).notNull(),
+  vaccineType: varchar('vaccine_type', { length: 50 }).default('core'),
+  diseasesProtected: jsonb('diseases_protected').notNull().$type<string[]>().default([]),
+  scheduledDate: date('scheduled_date').notNull(),
+  scheduledTime: varchar('scheduled_time', { length: 30 }).notNull(),
+  status: varchar('status', { length: 20 }).default('scheduled'), // 'scheduled' | 'completed' | 'cancelled' | 'missed'
+  notes: text('notes'),
+  remindersSent: integer('reminders_sent').default(0),
+  workflowId: varchar('workflow_id', { length: 100 }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  administeredBy: varchar('administered_by', { length: 120 }),
+  batchNumber: varchar('batch_number', { length: 100 }),
+  nextBoosterDate: varchar('next_booster_date', { length: 50 }),
+}, (table) => ({
+  ownerIdx: index('idx_vacc_owner').on(table.ownerId),
+  petIdx: index('idx_vacc_pet').on(table.petId),
+  clinicIdx: index('idx_vacc_clinic').on(table.clinicId),
+}));
+
+// ============================================================
+// TABLE: vaccination_records
+// ============================================================
+export const vaccinationRecords = pgTable('vaccination_records', {
+  id: varchar('id', { length: 100 }).primaryKey(),
+  petId: varchar('pet_id', { length: 100 }).notNull().references(() => pets.id, { onDelete: 'cascade' }),
+  petName: varchar('pet_name', { length: 100 }).notNull(),
+  vaccineName: varchar('vaccine_name', { length: 100 }).notNull(),
+  dateAdministered: date('date_administered').notNull(),
+  clinicId: varchar('clinic_id', { length: 100 }).references(() => vetClinics.id, { onDelete: 'set null' }),
+  clinicName: varchar('clinic_name', { length: 255 }).notNull(),
+  veterinarianName: varchar('veterinarian_name', { length: 120 }),
+  batchNumber: varchar('batch_number', { length: 100 }),
+  nextBoosterDate: varchar('next_booster_date', { length: 50 }),
+  notes: text('notes'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  petIdx: index('idx_vrec_pet').on(table.petId),
+  clinicIdx: index('idx_vrec_clinic').on(table.clinicId),
+}));
+
+// ============================================================
 // RELATIONS (for Drizzle relational query API)
 // ============================================================
 export const usersRelations = relations(users, ({ many, one }) => ({
@@ -180,17 +236,20 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   favoriteClinics: many(favoriteClinics),
   bookings: many(bookings),
   emergencyRequests: many(emergencyRequests),
+  vaccinationAppointments: many(vaccinationAppointments),
   clinic: one(vetClinics, {
     fields: [users.clinicId],
     references: [vetClinics.id],
   }),
 }));
 
-export const petsRelations = relations(pets, ({ one }) => ({
+export const petsRelations = relations(pets, ({ one, many }) => ({
   owner: one(users, {
     fields: [pets.ownerId],
     references: [users.id],
   }),
+  vaccinationAppointments: many(vaccinationAppointments),
+  vaccinationRecords: many(vaccinationRecords),
 }));
 
 export const vetClinicsRelations = relations(vetClinics, ({ many }) => ({
@@ -198,6 +257,8 @@ export const vetClinicsRelations = relations(vetClinics, ({ many }) => ({
   bookings: many(bookings),
   veterinarians: many(users),
   favoritedBy: many(favoriteClinics),
+  vaccinationAppointments: many(vaccinationAppointments),
+  vaccinationRecords: many(vaccinationRecords),
 }));
 
 export const favoriteClinicsRelations = relations(favoriteClinics, ({ one }) => ({
@@ -236,6 +297,32 @@ export const emergencyRequestsRelations = relations(emergencyRequests, ({ one })
   }),
   acceptedByClinic: one(vetClinics, {
     fields: [emergencyRequests.acceptedByClinicId],
+    references: [vetClinics.id],
+  }),
+}));
+
+export const vaccinationAppointmentsRelations = relations(vaccinationAppointments, ({ one }) => ({
+  pet: one(pets, {
+    fields: [vaccinationAppointments.petId],
+    references: [pets.id],
+  }),
+  owner: one(users, {
+    fields: [vaccinationAppointments.ownerId],
+    references: [users.id],
+  }),
+  clinic: one(vetClinics, {
+    fields: [vaccinationAppointments.clinicId],
+    references: [vetClinics.id],
+  }),
+}));
+
+export const vaccinationRecordsRelations = relations(vaccinationRecords, ({ one }) => ({
+  pet: one(pets, {
+    fields: [vaccinationRecords.petId],
+    references: [pets.id],
+  }),
+  clinic: one(vetClinics, {
+    fields: [vaccinationRecords.clinicId],
     references: [vetClinics.id],
   }),
 }));

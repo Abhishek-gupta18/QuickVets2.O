@@ -118,9 +118,8 @@ function useFetchAnalytics(clinicId: string | undefined): {
     const loadAnalytics = async () => {
       try {
         const apiBase = (import.meta as any).env?.VITE_API_URL || '';
-        const token = localStorage.getItem('vetfinder_token');
         const res = await fetch(`${apiBase}/api/analytics/vet?clinicId=${clinicId}`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          credentials: 'include',
         });
 
         if (!res.ok) {

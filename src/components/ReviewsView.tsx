@@ -212,7 +212,6 @@ export default function ReviewsView({
 
     setIsSubmittingStory(true);
     try {
-      const token = localStorage.getItem('vetfinder_token');
       const apiBase = (import.meta as any).env?.VITE_API_URL || '';
       
       const serializedText = JSON.stringify({
@@ -228,8 +227,8 @@ export default function ReviewsView({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
+        credentials: 'include',
         body: JSON.stringify({
           userName: currentUser.name,
           userEmail: currentUser.email,
