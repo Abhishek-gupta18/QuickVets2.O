@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Activity,
   AlertTriangle,
+  BadgeCheck,
   BarChart3,
   Bell,
   CalendarDays,
@@ -11,7 +12,6 @@ import {
   Download,
   Eye,
   FileSearch,
-  Gauge,
   Lock,
   MessageSquareWarning,
   Search,
@@ -65,67 +65,10 @@ interface AdminAnalyticsData {
 type AdminTab =
   | 'overview'
   | 'verification'
-  | 'performance'
+  | 'verified_vets'
   | 'complaints'
   | 'emergencies'
   | 'security';
-
-const verificationApplications = [
-  {
-    id: 'qv-ver-1042',
-    doctor: 'Dr. Neha Kapoor',
-    license: 'KVC-2021-88421',
-    clinic: 'Indiranagar Small Animal Clinic',
-    city: 'Bengaluru',
-    submitted: '2026-06-28',
-    status: 'Pending',
-    progress: 78,
-    assignedTo: 'Asha Menon',
-    specialty: 'Emergency and Surgery',
-    risk: 'Low',
-    documents: [
-      mockDocument('Medical License', 'license-neha-kapoor.pdf', 'application/pdf'),
-      mockDocument('Government ID', 'aadhaar-neha-kapoor.pdf', 'application/pdf'),
-      mockDocument('BVSc Degree', 'bvsc-degree-neha.png', 'image/png'),
-      mockDocument('Clinic Lease', 'clinic-lease.pdf', 'application/pdf'),
-    ],
-  },
-  {
-    id: 'qv-ver-1041',
-    doctor: 'Dr. Arvind Rao',
-    license: 'KVC-2018-44109',
-    clinic: 'North Bengaluru Pet Trauma Unit',
-    city: 'Bengaluru',
-    submitted: '2026-06-27',
-    status: 'Hold',
-    progress: 52,
-    assignedTo: 'Kabir Shah',
-    specialty: 'Critical Care',
-    risk: 'Medium',
-    documents: [
-      mockDocument('Medical License', 'license-arvind-rao.pdf', 'application/pdf'),
-      mockDocument('Government ID', 'passport-arvind.jpg', 'image/jpeg'),
-      mockDocument('Experience Letter', 'experience-letter.pdf', 'application/pdf'),
-    ],
-  },
-  {
-    id: 'qv-ver-1038',
-    doctor: 'Dr. Saira Thomas',
-    license: 'KVC-2024-77112',
-    clinic: 'Whitefield Exotic Care',
-    city: 'Bengaluru',
-    submitted: '2026-06-25',
-    status: 'Needs Documents',
-    progress: 36,
-    assignedTo: 'Asha Menon',
-    specialty: 'Birds and Exotics',
-    risk: 'High',
-    documents: [
-      mockDocument('Government ID', 'id-saira-thomas.pdf', 'application/pdf'),
-      mockDocument('Degree Certificate', 'degree-saira-thomas.pdf', 'application/pdf'),
-    ],
-  },
-];
 
 const complaints = [
   { id: 'cmp-772', category: 'Fake Credentials', vet: 'Whitefield Exotic Care', severity: 'High', age: '18 min', owner: 'Mira S.', status: 'Investigating' },
@@ -142,17 +85,6 @@ const auditLogs = [
 
 const monthlyBars = [38, 52, 46, 64, 72, 88, 76, 92];
 const emergencyBars = [18, 22, 15, 27, 31, 24, 35, 29];
-
-function mockDocument(label: string, fileName: string, fileType: string): VetDocument {
-  return {
-    id: `mock-${fileName}`,
-    label,
-    fileName,
-    fileType,
-    fileSize: 420000,
-    uploadedAt: '2026-06-28T10:30:00.000Z',
-  };
-}
 
 function formatVerificationStatus(status: VetClinic['verificationStatus']): string {
   const labels: Record<NonNullable<VetClinic['verificationStatus']>, string> = {
@@ -177,6 +109,9 @@ export default function AdminDashboard({ currentUser, clinics, bookings, emergen
   const [downloadingDoc, setDownloadingDoc] = useState(false);
   const [analytics, setAnalytics] = useState<AdminAnalyticsData | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
+  const [vetDocsModal, setVetDocsModal] = useState<VetClinic | null>(null);
+  const [vetSearchTerm, setVetSearchTerm] = useState('');
+  const [vetProfileModal, setVetProfileModal] = useState<VetClinic | null>(null);
 
   /** Fetch a Cloudinary signed URL for a document with a cloudinaryPublicId */
   const openDocumentWithSignedUrl = async (vetName: string, document: VetDocument) => {
@@ -319,7 +254,7 @@ export default function AdminDashboard({ currentUser, clinics, bookings, emergen
         documents: clinic.verificationDocuments || [],
       }));
 
-    return [...uploadedApplications, ...verificationApplications];
+    return uploadedApplications;
   }, [clinics]);
 
   const fallbackStats = useMemo(() => {
@@ -366,25 +301,11 @@ export default function AdminDashboard({ currentUser, clinics, bookings, emergen
     return haystack.includes(searchTerm.toLowerCase());
   });
 
-  const vetPerformance = clinics.map((clinic, index) => {
-    const clinicBookings = bookings.filter((booking) => booking.clinicId === clinic.id);
-    const completed = clinicBookings.filter((booking) => booking.status === 'completed').length;
-    const cancelled = clinicBookings.filter((booking) => booking.status === 'cancelled').length;
-    return {
-      ...clinic,
-      completed,
-      emergencies: emergencies.filter((emergency) => emergency.acceptedByClinicId === clinic.id).length,
-      response: `${8 + index * 3} min`,
-      acceptance: Math.max(72, 96 - index * 4),
-      cancellation: Math.min(18, cancelled * 6 + index + 2),
-      completion: Math.min(100, 82 + index * 3),
-    };
-  });
 
   const tabs = [
     { id: 'overview', label: 'Command Home', icon: BarChart3 },
     { id: 'verification', label: 'Vet Verification', icon: ClipboardCheck, count: stats.pendingVerifications },
-    { id: 'performance', label: 'Performance', icon: Gauge },
+    { id: 'verified_vets', label: 'Verified Vets', icon: BadgeCheck, count: clinics.filter(c => c.verificationStatus === 'approved').length },
     { id: 'complaints', label: 'Reviews & Complaints', icon: MessageSquareWarning, count: complaints.length },
     { id: 'emergencies', label: 'Emergency Monitor', icon: AlertTriangle },
     { id: 'security', label: 'Security Logs', icon: Lock },
@@ -702,51 +623,430 @@ export default function AdminDashboard({ currentUser, clinics, bookings, emergen
               </div>
             )}
 
-            {activeTab === 'performance' && (
-              <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-5">
-                <div>
-                  <h3 className="font-display font-black text-2xl text-slate-900">Veterinarian Performance Monitoring</h3>
-                  <p className="text-xs text-slate-500">Track ratings, appointment completion, emergency handling, response time, and cancellation risk.</p>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[760px] text-left">
-                    <thead>
-                      <tr className="text-[10px] uppercase tracking-widest text-slate-400 border-b">
-                        <th className="py-3">Veterinarian Center</th>
-                        <th>Rating</th>
-                        <th>Completed</th>
-                        <th>Emergencies</th>
-                        <th>Response</th>
-                        <th>Accept Rate</th>
-                        <th>Cancel Rate</th>
-                        <th>Profile</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {vetPerformance.map((vet) => (
-                        <tr key={vet.id} className="border-b border-slate-100 text-xs">
-                          <td className="py-4">
-                            <div className="font-black text-slate-800">{vet.name}</div>
-                            <div className="text-slate-400">{vet.area}, {vet.city}</div>
-                          </td>
-                          <td><span className="font-black text-amber-600">{vet.rating} ★</span><div className="text-slate-400">{vet.reviewsCount} reviews</div></td>
-                          <td className="font-bold">{vet.completed}</td>
-                          <td className="font-bold">{vet.emergencies}</td>
-                          <td className="font-bold">{vet.response}</td>
-                          <td className="font-bold text-green-700">{vet.acceptance}%</td>
-                          <td className="font-bold text-rose-600">{vet.cancellation}%</td>
-                          <td>
-                            <div className="w-24 h-2 rounded-full bg-slate-100 overflow-hidden">
-                              <div className="h-full bg-green-500" style={{ width: `${vet.completion}%` }} />
+            {activeTab === 'verified_vets' && (() => {
+              const approvedVets = clinics.filter(c => c.verificationStatus === 'approved');
+              const suspendedVets = clinics.filter(c => c.verificationStatus === 'suspended');
+              const docsReviewedToday = approvedVets.reduce((sum, v) => sum + (v.verificationDocuments?.length || 0), 0);
+
+              const filteredVets = approvedVets.filter(vet => {
+                const hay = `${vet.veterinarianName || ''} ${vet.name} ${vet.area} ${vet.licenseNumber || ''} ${vet.specialists.join(' ')}`.toLowerCase();
+                return hay.includes(vetSearchTerm.toLowerCase());
+              });
+
+              return (
+                <div className="space-y-6">
+                  {/* Summary Stat Cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="bg-white border border-green-100 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-11 h-11 rounded-xl bg-green-50 flex items-center justify-center">
+                          <BadgeCheck className="w-5.5 h-5.5 text-green-600" />
+                        </div>
+                      </div>
+                      <span className="block font-display font-black text-3xl text-slate-900">{approvedVets.length}</span>
+                      <span className="text-[11px] uppercase font-black text-slate-400 tracking-wide">Verified Vets</span>
+                    </div>
+                    <div className="bg-white border border-rose-100 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-11 h-11 rounded-xl bg-rose-50 flex items-center justify-center">
+                          <ShieldOff className="w-5.5 h-5.5 text-rose-500" />
+                        </div>
+                      </div>
+                      <span className="block font-display font-black text-3xl text-slate-900">{suspendedVets.length}</span>
+                      <span className="text-[11px] uppercase font-black text-slate-400 tracking-wide">Suspended Vets</span>
+                    </div>
+                    <div className="bg-white border border-blue-100 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-11 h-11 rounded-xl bg-blue-50 flex items-center justify-center">
+                          <FileSearch className="w-5.5 h-5.5 text-blue-600" />
+                        </div>
+                      </div>
+                      <span className="block font-display font-black text-3xl text-slate-900">{docsReviewedToday}</span>
+                      <span className="text-[11px] uppercase font-black text-slate-400 tracking-wide">Documents Reviewed</span>
+                    </div>
+                  </div>
+
+                  {/* Main Section */}
+                  <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                      <div>
+                        <div className="flex items-center gap-2.5 mb-1">
+                          <BadgeCheck className="w-6 h-6 text-green-600" />
+                          <h3 className="font-display font-black text-2xl text-slate-900">Verified Veterinarians</h3>
+                        </div>
+                        <p className="text-xs text-slate-500">All veterinarians who have passed identity, license, and credential verification.</p>
+                      </div>
+                      <div className="relative w-full sm:w-72">
+                        <Search className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                        <input
+                          value={vetSearchTerm}
+                          onChange={(e) => setVetSearchTerm(e.target.value)}
+                          placeholder="Search by name, clinic, area..."
+                          className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:border-green-400"
+                        />
+                      </div>
+                    </div>
+
+                    {filteredVets.length === 0 ? (
+                      <div className="py-20 flex flex-col items-center justify-center text-center gap-4">
+                        <div className="w-16 h-16 rounded-3xl bg-slate-100 flex items-center justify-center">
+                          <BadgeCheck className="w-8 h-8 text-slate-400" />
+                        </div>
+                        <div>
+                          <h4 className="font-black text-slate-800 text-lg">No verified vets found</h4>
+                          <p className="text-sm text-slate-500 max-w-sm mt-1">
+                            {vetSearchTerm ? 'Try adjusting your search term.' : 'Approve veterinarians from the Verification tab to see them here.'}
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+                        {filteredVets.map((vet) => {
+                          const totalDocs = vet.verificationDocuments?.length || 0;
+                          const verifiedDocs = totalDocs; // All docs are verified since vet is approved
+                          return (
+                            <div key={vet.id} className="group relative border border-slate-100 rounded-3xl p-5 bg-white shadow-sm hover:shadow-lg hover:border-green-200 transition-all duration-200">
+                              {/* Top: Avatar + Info */}
+                              <div className="flex gap-4">
+                                {/* Avatar */}
+                                <div className="relative flex-shrink-0">
+                                  <div className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-green-200 shadow-sm">
+                                    <img
+                                      src={vet.imageUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(vet.veterinarianName || vet.name)}`}
+                                      alt={vet.veterinarianName || vet.name}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </div>
+                                  {/* Verified badge on avatar */}
+                                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center border-2 border-white shadow-sm">
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                                  </div>
+                                </div>
+
+                                {/* Name + Details */}
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div>
+                                      <h4 className="font-display font-black text-base text-slate-900 leading-tight truncate">
+                                        {vet.veterinarianName || `Dr. ${vet.name.split(' ')[0]}`}
+                                      </h4>
+                                      <p className="text-xs text-slate-500 truncate mt-0.5">{vet.name}</p>
+                                    </div>
+                                    {/* Three-dot menu */}
+                                    <button className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors opacity-0 group-hover:opacity-100">
+                                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M10 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4z"/>
+                                      </svg>
+                                    </button>
+                                  </div>
+
+                                  {/* Specialties */}
+                                  <div className="flex flex-wrap gap-1.5 mt-2">
+                                    {vet.specialists.slice(0, 3).map(spec => (
+                                      <span key={spec} className="px-2 py-0.5 bg-green-50 border border-green-100 text-green-700 text-[10px] font-bold rounded-md">
+                                        {spec}
+                                      </span>
+                                    ))}
+                                    {vet.specialists.length > 3 && (
+                                      <span className="px-2 py-0.5 bg-slate-50 border border-slate-100 text-slate-500 text-[10px] font-bold rounded-md">
+                                        +{vet.specialists.length - 3}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Info Grid */}
+                              <div className="grid grid-cols-2 gap-2.5 mt-4">
+                                <div className="bg-slate-50 rounded-xl p-2.5 border border-slate-100">
+                                  <span className="block text-[9px] font-black uppercase text-slate-400 tracking-wide">Location</span>
+                                  <span className="block text-xs font-bold text-slate-700 truncate">{vet.area}, {vet.city}</span>
+                                </div>
+                                <div className="bg-slate-50 rounded-xl p-2.5 border border-slate-100">
+                                  <span className="block text-[9px] font-black uppercase text-slate-400 tracking-wide">License No.</span>
+                                  <span className="block text-xs font-bold text-slate-700 truncate">{vet.licenseNumber || 'VCI-XXXXX'}</span>
+                                </div>
+                                <div className="bg-slate-50 rounded-xl p-2.5 border border-slate-100">
+                                  <span className="block text-[9px] font-black uppercase text-slate-400 tracking-wide">Rating</span>
+                                  <span className="block text-xs font-bold text-slate-700 flex items-center gap-1">
+                                    <Star className="w-3 h-3 text-amber-400 fill-amber-400" /> {vet.rating.toFixed(1)} ({vet.reviewsCount})
+                                  </span>
+                                </div>
+                                <div className="bg-slate-50 rounded-xl p-2.5 border border-slate-100">
+                                  <span className="block text-[9px] font-black uppercase text-slate-400 tracking-wide">Experience</span>
+                                  <span className="block text-xs font-bold text-slate-700">{vet.yearsOfExperience || '5+'} years</span>
+                                </div>
+                              </div>
+
+                              {/* Badges Row */}
+                              <div className="flex flex-wrap items-center gap-2 mt-4">
+                                {/* Verified Status Badge */}
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-50 border border-green-200 text-green-700 rounded-xl text-[10px] font-black">
+                                  <CheckCircle2 className="w-3.5 h-3.5" /> Verified
+                                </span>
+                                {/* Documents Verified Badge */}
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-200 text-blue-700 rounded-xl text-[10px] font-black">
+                                  <FileSearch className="w-3.5 h-3.5" /> Documents Verified ({verifiedDocs}/{totalDocs || 3})
+                                </span>
+                              </div>
+
+                              {/* Verification Metadata */}
+                              <div className="flex items-center gap-4 mt-3 text-[10px] text-slate-400 font-semibold">
+                                <span>Verified On: {vet.verificationDocuments?.[0]?.uploadedAt?.split('T')[0] || '2026-06-28'}</span>
+                                <span>·</span>
+                                <span>Verified By: Asha Menon</span>
+                              </div>
+
+                              {/* Action Buttons */}
+                              <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-slate-100">
+                                <button
+                                  onClick={() => setVetProfileModal(vet)}
+                                  className="flex items-center gap-1.5 px-3 py-2 bg-slate-900 text-white rounded-xl text-[11px] font-black hover:bg-slate-800 transition-colors"
+                                >
+                                  <Eye className="w-3.5 h-3.5" /> View Profile
+                                </button>
+                                <button
+                                  onClick={() => setVetDocsModal(vet)}
+                                  className="flex items-center gap-1.5 px-3 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-xl text-[11px] font-black hover:bg-blue-100 transition-colors"
+                                >
+                                  <FileSearch className="w-3.5 h-3.5" /> View Documents
+                                </button>
+                                <button
+                                  onClick={() => handleVerificationAction(vet.id, 'suspended')}
+                                  className="flex items-center gap-1.5 px-3 py-2 bg-rose-50 text-rose-600 border border-rose-200 rounded-xl text-[11px] font-black hover:bg-rose-100 transition-colors"
+                                >
+                                  <ShieldOff className="w-3.5 h-3.5" /> Suspend Vet
+                                </button>
+                              </div>
                             </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Documents Modal */}
+                  {vetDocsModal && (
+                    <div className="fixed inset-0 z-[2500] bg-slate-950/75 backdrop-blur-sm p-4 flex items-center justify-center">
+                      <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-3xl max-h-[88vh] overflow-hidden flex flex-col">
+                        {/* Modal Header */}
+                        <div className="p-6 border-b border-slate-100">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 rounded-2xl overflow-hidden border-2 border-green-200">
+                                <img
+                                  src={vetDocsModal.imageUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(vetDocsModal.veterinarianName || vetDocsModal.name)}`}
+                                  alt={vetDocsModal.veterinarianName || vetDocsModal.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                              <div>
+                                <h3 className="font-display font-black text-xl text-slate-900">Verification Documents</h3>
+                                <p className="text-xs text-slate-500">{vetDocsModal.veterinarianName || vetDocsModal.name} · {vetDocsModal.name}</p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => setVetDocsModal(null)}
+                              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 transition-colors"
+                            >
+                              <XCircle className="w-5 h-5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Documents List */}
+                        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                          {(vetDocsModal.verificationDocuments && vetDocsModal.verificationDocuments.length > 0) ? (
+                            vetDocsModal.verificationDocuments.map((doc, idx) => (
+                              <div key={doc.id} className="border border-slate-100 rounded-2xl p-4 hover:border-green-200 transition-colors">
+                                <div className="flex items-start justify-between gap-4">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0">
+                                      {doc.fileType.startsWith('image/') ? (
+                                        <Eye className="w-5 h-5 text-slate-500" />
+                                      ) : (
+                                        <FileSearch className="w-5 h-5 text-slate-500" />
+                                      )}
+                                    </div>
+                                    <div>
+                                      <h4 className="font-bold text-sm text-slate-900">{doc.label}</h4>
+                                      <p className="text-[11px] text-slate-400">{doc.fileName} · {formatBytes(doc.fileSize)}</p>
+                                    </div>
+                                  </div>
+                                  {/* Status Badge */}
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-50 border border-green-200 text-green-700 rounded-lg text-[10px] font-black flex-shrink-0">
+                                    <CheckCircle2 className="w-3 h-3" /> Verified
+                                  </span>
+                                </div>
+
+                                {/* Upload Date */}
+                                <div className="mt-3 text-[10px] text-slate-400 font-semibold">
+                                  Uploaded: {doc.uploadedAt?.split('T')[0] || 'N/A'}
+                                </div>
+
+                                {/* Action Buttons */}
+                                <div className="flex gap-2 mt-3">
+                                  <button
+                                    onClick={() => { setVetDocsModal(null); openDocumentWithSignedUrl(vetDocsModal.veterinarianName || vetDocsModal.name, doc); }}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 text-white rounded-lg text-[10px] font-black hover:bg-slate-800 transition-colors"
+                                  >
+                                    <Eye className="w-3 h-3" /> View
+                                  </button>
+                                  <button
+                                    onClick={() => triggerDownload(doc)}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border border-slate-200 text-slate-600 rounded-lg text-[10px] font-black hover:bg-slate-100 transition-colors"
+                                  >
+                                    <Download className="w-3 h-3" /> Download
+                                  </button>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="py-12 text-center">
+                              <FileSearch className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+                              <p className="text-sm text-slate-500 font-semibold">No documents uploaded yet.</p>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div className="p-5 border-t border-slate-100 bg-slate-50 rounded-b-3xl">
+                          <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
+                            <div className="space-y-0.5">
+                              <span className="block font-semibold">Verified By: <span className="text-slate-700 font-black">Asha Menon</span></span>
+                              <span className="block font-semibold">Verified On: <span className="text-slate-700 font-black">{vetDocsModal.verificationDocuments?.[0]?.uploadedAt?.split('T')[0] || '2026-06-28'}</span></span>
+                            </div>
+                            <div className="text-[10px] text-slate-400 max-w-xs text-right">
+                              All documents have been reviewed and confirmed authentic by the QuickVet admin team.
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* View Profile Modal */}
+                  {vetProfileModal && (() => {
+                    const patientsTreated = bookings.filter(b => b.clinicId === vetProfileModal.id && b.status === 'completed').length;
+                    const totalAppointments = bookings.filter(b => b.clinicId === vetProfileModal.id).length;
+                    const pendingAppointments = bookings.filter(b => b.clinicId === vetProfileModal.id && b.status === 'pending').length;
+                    const emergenciesHandled = emergencies.filter(e => e.acceptedByClinicId === vetProfileModal.id).length;
+                    const joinDate = vetProfileModal.verificationDocuments?.[0]?.uploadedAt?.split('T')[0] || '2026-06-01';
+
+                    return (
+                      <div
+                        className="fixed inset-0 z-[2600] bg-slate-950/70 backdrop-blur-sm p-4 flex items-center justify-center"
+                        onClick={() => setVetProfileModal(null)}
+                      >
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-3xl overflow-hidden"
+                          style={{ animation: 'scaleIn 0.2s ease-out' }}
+                        >
+                          {/* Header Bar */}
+                          <div className="bg-gradient-to-r from-[#58B368] to-[#3d9b50] px-6 py-5 text-white relative overflow-hidden">
+                            <div className="absolute top-[-40px] right-[-40px] w-40 h-40 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+                            <div className="relative flex items-center justify-between">
+                              <div className="flex items-center gap-4">
+                                <div className="w-14 h-14 rounded-2xl overflow-hidden border-2 border-white/30 shadow-lg flex-shrink-0">
+                                  <img
+                                    src={vetProfileModal.imageUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(vetProfileModal.veterinarianName || vetProfileModal.name)}`}
+                                    alt={vetProfileModal.veterinarianName || vetProfileModal.name}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                                <div className="min-w-0">
+                                  <h3 className="font-display font-black text-xl leading-tight truncate">
+                                    {vetProfileModal.veterinarianName || `Dr. ${vetProfileModal.name.split(' ')[0]}`}
+                                  </h3>
+                                  <p className="text-white/70 text-xs truncate">{vetProfileModal.name} · {vetProfileModal.area}, {vetProfileModal.city}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-white/20 rounded-lg text-[10px] font-bold">
+                                  <CheckCircle2 className="w-3 h-3" /> Verified
+                                </span>
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-white/20 rounded-lg text-[10px] font-bold">
+                                  <Star className="w-3 h-3" /> {vetProfileModal.rating.toFixed(1)}
+                                </span>
+                                <button
+                                  onClick={() => setVetProfileModal(null)}
+                                  className="ml-2 p-1.5 bg-white/15 hover:bg-white/25 rounded-xl transition-colors"
+                                >
+                                  <XCircle className="w-4.5 h-4.5" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Body — horizontal layout */}
+                          <div className="p-6 flex flex-col md:flex-row gap-6">
+                            {/* Left: Metrics */}
+                            <div className="grid grid-cols-2 gap-3 md:w-[280px] flex-shrink-0">
+                              <div className="bg-green-50 border border-green-100 rounded-2xl p-3.5 text-center">
+                                <span className="block font-display font-black text-2xl text-green-700">{patientsTreated}</span>
+                                <span className="text-[9px] font-bold text-green-600 uppercase">Patients Treated</span>
+                              </div>
+                              <div className="bg-blue-50 border border-blue-100 rounded-2xl p-3.5 text-center">
+                                <span className="block font-display font-black text-2xl text-blue-700">{totalAppointments}</span>
+                                <span className="text-[9px] font-bold text-blue-600 uppercase">Appointments</span>
+                              </div>
+                              <div className="bg-amber-50 border border-amber-100 rounded-2xl p-3.5 text-center">
+                                <span className="block font-display font-black text-2xl text-amber-700">{pendingAppointments}</span>
+                                <span className="text-[9px] font-bold text-amber-600 uppercase">Pending Now</span>
+                              </div>
+                              <div className="bg-rose-50 border border-rose-100 rounded-2xl p-3.5 text-center">
+                                <span className="block font-display font-black text-2xl text-rose-700">{emergenciesHandled}</span>
+                                <span className="text-[9px] font-bold text-rose-600 uppercase">Emergencies</span>
+                              </div>
+
+                              {/* Services below metrics */}
+                              <div className="col-span-2 mt-1">
+                                <span className="text-[9px] font-black uppercase text-slate-400 tracking-wide">Services</span>
+                                <div className="flex flex-wrap gap-1 mt-1.5">
+                                  {vetProfileModal.services.slice(0, 5).map(service => (
+                                    <span key={service} className="px-2 py-0.5 bg-slate-50 border border-slate-100 text-slate-600 text-[9px] font-bold rounded-md">
+                                      {service}
+                                    </span>
+                                  ))}
+                                  {vetProfileModal.services.length > 5 && (
+                                    <span className="px-2 py-0.5 bg-slate-50 border border-slate-100 text-slate-400 text-[9px] font-bold rounded-md">
+                                      +{vetProfileModal.services.length - 5}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Right: Details grid */}
+                            <div className="flex-1 min-w-0">
+                              <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+                                {[
+                                  ['Specialties', vetProfileModal.specialists.join(', ')],
+                                  ['License', vetProfileModal.licenseNumber || 'VCI-XXXXX'],
+                                  ['Experience', `${vetProfileModal.yearsOfExperience || '5+'} years`],
+                                  ['Working Hours', vetProfileModal.workingHours],
+                                  ['Phone', vetProfileModal.phone],
+                                  ['Reviews', `${vetProfileModal.reviewsCount} reviews`],
+                                  ['Joined Platform', joinDate],
+                                  ['Documents', `${vetProfileModal.verificationDocuments?.length || 0} verified`],
+                                ].map(([label, value]) => (
+                                  <div key={label} className="flex items-center justify-between py-2 border-b border-slate-50">
+                                    <span className="text-[11px] text-slate-400 font-semibold">{label}</span>
+                                    <span className="text-[11px] font-bold text-slate-800 text-right truncate max-w-[140px]">{value}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
-              </div>
-            )}
+              );
+            })()}
+
 
             {activeTab === 'complaints' && (
               <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
