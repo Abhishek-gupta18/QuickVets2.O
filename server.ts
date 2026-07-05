@@ -1335,6 +1335,19 @@ async function buildUserResponse(userId: string) {
 const vaccinationAppointments: any[] = [];
 const vaccinationRecords: any[] = [];
 
+// Lazy-import Temporal client (non-blocking — app works without Temporal)
+let temporalModule: any = null;
+async function getTemporalModule() {
+  if (temporalModule) return temporalModule;
+  try {
+    temporalModule = await import('./src/server/temporal/client.js');
+    return temporalModule;
+  } catch (err) {
+    console.warn('Temporal client module not available — workflows disabled');
+    return null;
+  }
+}
+
 // CREATE vaccination appointment
 app.post('/api/vaccinations/appointments', authenticateToken, async (req: any, res: any) => {
   try {
@@ -1357,18 +1370,27 @@ app.post('/api/vaccinations/appointments', authenticateToken, async (req: any, r
       status: 'scheduled',
       notes: notes || '',
       remindersSent: 0,
-      workflowId: `wf-vacc-${id}`,
+      workflowId: `vacc-wf-${id}`,
       createdAt: new Date().toISOString(),
     };
 
     vaccinationAppointments.push(appointment);
 
-    // In production: Start Temporal workflow here
-    // const handle = await temporalClient.workflow.start(VaccinationAppointmentWorkflow, {
-    //   workflowId: appointment.workflowId,
-    //   taskQueue: 'vaccination-queue',
-    //   args: [{ appointmentId: id, petName, petType, ownerEmail: req.user.email, ... }],
-    // });
+    // Start Temporal workflow (non-blocking — gracefully degrades if Temporal is unavailable)
+    const temporal = await getTemporalModule();
+    if (temporal) {
+      const workflowId = await temporal.startVaccinationWorkflow({
+        appointmentId: id,
+        petName, petType,
+        ownerEmail: req.user.email,
+        ownerName: appointment.ownerName,
+        clinicName, clinicId,
+        vaccineName,
+        scheduledDate, scheduledTime,
+        boosterIntervalDays: vaccineType === 'core' ? 365 : undefined,
+      });
+      if (workflowId) appointment.workflowId = workflowId;
+    }
 
     res.status(201).json(appointment);
   } catch (err: any) {
@@ -1410,6 +1432,16 @@ app.put('/api/vaccinations/appointments/:id/status', authenticateToken, async (r
     if (batchNumber) appt.batchNumber = batchNumber;
     if (nextBoosterDate) appt.nextBoosterDate = nextBoosterDate;
 
+    // Signal Temporal workflow based on status change
+    const temporal = await getTemporalModule();
+    if (temporal && appt.workflowId) {
+      if (status === 'completed') {
+        await temporal.completeVaccinationWorkflow(appt.workflowId);
+      } else if (status === 'cancelled') {
+        await temporal.cancelVaccinationWorkflow(appt.workflowId);
+      }
+    }
+
     // If completed, create a vaccination record
     if (status === 'completed') {
       const record = {
@@ -1444,8 +1476,11 @@ app.delete('/api/vaccinations/appointments/:id', authenticateToken, async (req: 
     vaccinationAppointments[idx].status = 'cancelled';
     vaccinationAppointments[idx].updatedAt = new Date().toISOString();
 
-    // In production: Cancel Temporal workflow
-    // await temporalClient.workflow.cancel(vaccinationAppointments[idx].workflowId);
+    // Cancel Temporal workflow
+    const temporal = await getTemporalModule();
+    if (temporal && vaccinationAppointments[idx].workflowId) {
+      await temporal.cancelVaccinationWorkflow(vaccinationAppointments[idx].workflowId);
+    }
 
     res.json({ message: 'Appointment cancelled.' });
   } catch (err: any) {
