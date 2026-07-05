@@ -12,7 +12,7 @@ import ReviewsModal from './components/ReviewsModal';
 import ReviewsView from './components/ReviewsView';
 import EmergencyWidget from './components/EmergencyWidget';
 import UserDashboard from './components/UserDashboard';
-import VetDashboard from './components/VetDashboard';
+import VetDashboardLayout from './components/vet-dashboard';
 import AdminDashboard from './components/AdminDashboard';
 import VetRegistrationModal from './components/VetRegistrationModal';
 import AuthModal from './components/AuthModal';
@@ -626,7 +626,7 @@ export default function App() {
         {activeTab === 'vet_dashboard' && (
           currentUser && currentUser.role === 'veterinarian' ? (
             <motion.div key="vet_dashboard" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-grow">
-              <VetDashboard
+              <VetDashboardLayout
                 currentUser={currentUser}
                 clinics={clinics}
                 bookings={bookings}
