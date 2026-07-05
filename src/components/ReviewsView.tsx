@@ -3,7 +3,7 @@ import {
   Star, Search, Filter, SlidersHorizontal, CheckCircle2, 
   ThumbsUp, Calendar, MapPin, Award, ArrowRight, Stethoscope,
   ShieldCheck, Heart, Sparkles, RefreshCw, AlertCircle, Compass,
-  FolderHeart, HeartPulse, Clock, Sparkle, ChevronLeft, ChevronRight
+  FolderHeart, HeartPulse, Clock, Sparkle, ChevronLeft, ChevronRight, X
 } from 'lucide-react';
 import { VetClinic, ClinicReview, User } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
@@ -160,6 +160,120 @@ export default function ReviewsView({
   const [selectedRating, setSelectedRating] = useState('All');
   const [selectedSort, setSelectedSort] = useState('recent');
   const [categoryFilter, setCategoryFilter] = useState('all');
+
+  // Write Story Modal States
+  const [showWriteModal, setShowWriteModal] = useState(false);
+  const [storyTitle, setStoryTitle] = useState('');
+  const [petName, setPetName] = useState('');
+  const [petType, setPetType] = useState('Dog');
+  const [selectedClinicIdForReview, setSelectedClinicIdForReview] = useState('');
+  const [vetName, setVetName] = useState('');
+  const [storyText, setStoryText] = useState('');
+  const [platformRating, setPlatformRating] = useState(5);
+  const [platformFeedback, setPlatformFeedback] = useState('');
+  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+  const [isSubmittingStory, setIsSubmittingStory] = useState(false);
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    
+    Array.from(files).forEach((file: any) => {
+      if (file.size > 2 * 1024 * 1024) {
+        alert(`File ${file.name} is too large. Max size is 2MB.`);
+        return;
+      }
+      
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          setUploadedImages((prev) => [...prev, reader.result as string]);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removeUploadedImage = (indexToRemove: number) => {
+    setUploadedImages((prev) => prev.filter((_, idx) => idx !== indexToRemove));
+  };
+
+  const handlePublishStory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser) return;
+    if (!selectedClinicIdForReview) {
+      alert('Please select a clinic.');
+      return;
+    }
+    if (!storyTitle.trim() || !storyText.trim()) {
+      alert('Please fill out both the story title and recovery details.');
+      return;
+    }
+
+    setIsSubmittingStory(true);
+    try {
+      const token = localStorage.getItem('vetfinder_token');
+      const apiBase = (import.meta as any).env?.VITE_API_URL || '';
+      
+      const serializedText = JSON.stringify({
+        storyTitle,
+        vetName,
+        platformRating,
+        platformFeedback,
+        images: uploadedImages,
+        mainText: storyText
+      });
+
+      const res = await fetch(`${apiBase}/api/clinics/${selectedClinicIdForReview}/reviews`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          userName: currentUser.name,
+          userEmail: currentUser.email,
+          petType,
+          rating: platformRating,
+          reviewText: serializedText,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to submit story.');
+      }
+
+      // Reset states & close
+      setStoryTitle('');
+      setPetName('');
+      setPetType('Dog');
+      setSelectedClinicIdForReview('');
+      setVetName('');
+      setStoryText('');
+      setPlatformRating(5);
+      setPlatformFeedback('');
+      setUploadedImages([]);
+      setShowWriteModal(false);
+      
+      // Refresh list
+      await fetchReviews(true);
+    } catch (err) {
+      alert('Failed to publish story. Please check your network connection.');
+    } finally {
+      setIsSubmittingStory(false);
+    }
+  };
+
+  const parseRichReviewText = (text: string) => {
+    try {
+      if (text && text.trim().startsWith('{') && text.trim().endsWith('}')) {
+        return JSON.parse(text);
+      }
+    } catch (e) {
+      // ignore
+    }
+    return null;
+  };
 
   // Detect mobile viewport
   useEffect(() => {
@@ -772,6 +886,13 @@ export default function ReviewsView({
                   const votes = (helpfulRatings[rev.id] || 0) + (idx % 3 === 0 ? 7 : idx % 5 === 1 ? 4 : 2);
                   const isAlternativeLayout = idx % 2 === 1;
 
+                  const richData = parseRichReviewText(rev.reviewText);
+                  const isRich = !!richData;
+                  const displayText = isRich ? richData.mainText : rev.reviewText;
+                  const displayTitle = isRich ? richData.storyTitle : '';
+                  const displayVetName = isRich ? (richData.vetName || rev.veterinarianName || 'Lead Surgeon') : (rev.veterinarianName || 'Lead Surgeon');
+                  const displayImages = isRich && Array.isArray(richData.images) ? richData.images : [];
+
                   return (
                     <motion.div
                       key={rev.id}
@@ -795,7 +916,7 @@ export default function ReviewsView({
                               📍 {rev.clinicArea}, {rev.clinicCity}
                             </span>
                             <span className="text-[10px] text-slate-500 font-bold block mt-1">
-                              Veterinarian: <strong className="text-slate-700">{rev.veterinarianName || 'Lead Surgeon'}</strong>
+                              Veterinarian: <strong className="text-slate-700">{displayVetName}</strong>
                             </span>
                           </div>
                         </div>
@@ -818,9 +939,61 @@ export default function ReviewsView({
                       </div>
 
                       {/* Review Comment */}
-                      <p className="mt-4 text-xs sm:text-sm text-slate-600 leading-relaxed font-normal bg-slate-50/50 p-4 rounded-2xl border border-slate-100/30 italic">
-                        "{rev.reviewText}"
-                      </p>
+                      <div className="mt-4 bg-slate-50/50 p-4 rounded-2xl border border-slate-100/30">
+                        {displayTitle && (
+                          <h5 className="font-display font-black text-slate-800 text-xs sm:text-sm mb-1">
+                            {displayTitle}
+                          </h5>
+                        )}
+                        <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-normal italic">
+                          "{displayText}"
+                        </p>
+                        
+                        {displayImages.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mt-3">
+                            {displayImages.map((img: string, imgIdx: number) => (
+                              <img
+                                key={imgIdx}
+                                src={img}
+                                alt="User uploaded pet"
+                                className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-xl border border-slate-100 hover:scale-105 transition-transform cursor-pointer"
+                                onClick={() => {
+                                  const win = window.open();
+                                  if (win) {
+                                    win.document.write(`<img src="${img}" style="max-width:100%; max-height:100vh; display:block; margin:auto;" />`);
+                                  }
+                                }}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      
+                      {isRich && richData.platformRating && (
+                        <div className="mt-3 bg-emerald-50/60 border border-emerald-100/40 p-3 rounded-2xl flex items-start gap-2">
+                          <span className="text-sm">🚀</span>
+                          <div className="space-y-0.5">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-black text-emerald-800 text-[10px]">QuickVet Platform Experience:</span>
+                              <div className="flex text-amber-400">
+                                {Array.from({ length: 5 }).map((_, i) => (
+                                  <Star
+                                    key={i}
+                                    className={`w-3 h-3 ${
+                                      i < richData.platformRating ? 'fill-amber-400 text-amber-400' : 'text-slate-200'
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                            {richData.platformFeedback && (
+                              <p className="text-slate-500 font-medium leading-relaxed italic text-[10px]">
+                                "{richData.platformFeedback}"
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
 
                       {/* Interaction Row */}
                       <div className="mt-4 pt-3.5 border-t border-slate-50 flex items-center justify-between flex-wrap gap-4 text-[11px]">
@@ -946,7 +1119,7 @@ export default function ReviewsView({
 
           <div className="flex-shrink-0">
             <button
-              onClick={() => currentUser ? onOpenAuth('login') : onOpenAuth('signup')}
+              onClick={() => currentUser ? setShowWriteModal(true) : onOpenAuth('login')}
               className="px-6 py-3 bg-white hover:bg-green-50 text-[#0F2D19] font-black text-xs rounded-2xl shadow-md transition-transform hover:scale-105 active:scale-95 cursor-pointer flex items-center gap-1.5 animate-pulse"
               style={{ animationDuration: '3000ms' }}
             >
@@ -958,6 +1131,251 @@ export default function ReviewsView({
 
       </div>
 
+      {/* 8. WRITE YOUR STORY MODAL */}
+      <AnimatePresence>
+        {showWriteModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[2500] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 15 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 15 }}
+              transition={{ duration: 0.22, ease: 'easeOut' }}
+              className="bg-[#F8FDF9] w-full max-w-2xl rounded-[32px] overflow-hidden shadow-2xl border border-green-100 flex flex-col max-h-[90vh] my-auto"
+            >
+              {/* Header Banner */}
+              <div className="bg-gradient-to-r from-[#0F2D19] to-[#24633E] p-6 text-white flex items-center justify-between flex-shrink-0">
+                <div>
+                  <span className="text-[9px] uppercase font-black tracking-widest bg-white/10 px-2 py-0.5 rounded border border-white/20">Write Your Story</span>
+                  <h3 className="font-display font-black text-lg sm:text-xl mt-1">Share Your Pet Journey & Platform Feedback</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowWriteModal(false)}
+                  className="p-2 bg-white/10 hover:bg-white/25 rounded-2xl text-white transition-colors cursor-pointer"
+                >
+                  <X className="w-4.5 h-4.5" />
+                </button>
+              </div>
+
+              {/* Scrollable Form Body */}
+              <form onSubmit={handlePublishStory} className="flex-grow overflow-y-auto p-6 md:p-8 space-y-6 text-left">
+                
+                {/* Story/Incident Details */}
+                <div className="space-y-4">
+                  <h4 className="font-display font-black text-slate-800 text-sm border-b border-green-100/50 pb-1.5 flex items-center gap-1.5">
+                    <HeartPulse className="w-4 h-4 text-[#58B368]" />
+                    <span>1. Pet & Incident Story</span>
+                  </h4>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Story / Incident Title</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Bella's Spine Stabilization Journey"
+                        value={storyTitle}
+                        onChange={(e) => setStoryTitle(e.target.value)}
+                        className="w-full p-3 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-green-400 h-10.5 font-bold text-slate-800"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Pet Name</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Bella"
+                        value={petName}
+                        onChange={(e) => setPetName(e.target.value)}
+                        className="w-full p-3 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-green-400 h-10.5 font-bold text-slate-800"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Pet Type</label>
+                      <select
+                        value={petType}
+                        onChange={(e) => setPetType(e.target.value)}
+                        className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-green-400 h-[38px] font-bold text-slate-700"
+                      >
+                        <option value="Dog">🐶 Dog</option>
+                        <option value="Cat">🐱 Cat</option>
+                        <option value="Bird">🦜 Bird</option>
+                        <option value="Rabbit">🐰 Rabbit</option>
+                        <option value="Exotics">🦎 Exotic Pet</option>
+                      </select>
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Clinic Visited</label>
+                      <select
+                        value={selectedClinicIdForReview}
+                        onChange={(e) => setSelectedClinicIdForReview(e.target.value)}
+                        required
+                        className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-green-400 h-[38px] font-bold text-slate-700"
+                      >
+                        <option value="">Select clinic...</option>
+                        {clinics.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name} ({c.area}, {c.city})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Veterinarian Name (Optional)</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Dr. Sen"
+                        value={vetName}
+                        onChange={(e) => setVetName(e.target.value)}
+                        className="w-full p-3 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-green-400 h-10.5 font-bold text-slate-800"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Incident & Recovery Details</label>
+                    <textarea
+                      rows={3}
+                      required
+                      placeholder="Describe the medical incident, how QuickVet helped, the treatment, and the recovery process..."
+                      value={storyText}
+                      onChange={(e) => setStoryText(e.target.value)}
+                      className="w-full p-3 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-green-400 leading-relaxed font-medium text-slate-700"
+                    />
+                  </div>
+                </div>
+
+                {/* Platform Review */}
+                <div className="space-y-4 pt-2">
+                  <h4 className="font-display font-black text-slate-800 text-sm border-b border-green-100/50 pb-1.5 flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-[#58B368]" />
+                    <span>2. QuickVet Platform Feedback</span>
+                  </h4>
+                  
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Platform Experience Rating</label>
+                    <div className="flex items-center gap-1.5">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => setPlatformRating(i + 1)}
+                          className="p-1 hover:scale-110 active:scale-95 transition-transform"
+                        >
+                          <Star
+                            className={`w-7 h-7 cursor-pointer transition-colors ${
+                              i < platformRating ? 'fill-amber-400 text-amber-400' : 'text-slate-200'
+                            }`}
+                          />
+                        </button>
+                      ))}
+                      <span className="text-xs font-black text-slate-600 pl-2">{platformRating} / 5 Stars</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Platform Review Comments (Optional)</label>
+                    <textarea
+                      rows={2}
+                      placeholder="Your feedback about our booking speeds, maps, support, or overall platform convenience..."
+                      value={platformFeedback}
+                      onChange={(e) => setPlatformFeedback(e.target.value)}
+                      className="w-full p-3 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-green-400 leading-relaxed font-medium text-slate-700"
+                    />
+                  </div>
+                </div>
+
+                {/* Image Upload Option */}
+                <div className="space-y-4 pt-2">
+                  <h4 className="font-display font-black text-slate-800 text-sm border-b border-green-100/50 pb-1.5 flex items-center gap-1.5">
+                    <FolderHeart className="w-4 h-4 text-[#58B368]" />
+                    <span>3. Upload Pet Recovery Photos</span>
+                  </h4>
+
+                  <div className="flex flex-col gap-4">
+                    <div className="flex items-center justify-center w-full">
+                      <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-slate-200 rounded-2xl cursor-pointer bg-white hover:bg-slate-50/50 hover:border-green-300 transition-colors">
+                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                          <span className="text-2xl mb-1">📸</span>
+                          <p className="text-xs font-black text-slate-600">Click to upload pet photos</p>
+                          <p className="text-[10px] text-slate-400 mt-1">JPEG, PNG up to 2MB each</p>
+                        </div>
+                        <input
+                          type="file"
+                          multiple
+                          accept="image/*"
+                          onChange={handleImageChange}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+
+                    {/* Previews Grid */}
+                    {uploadedImages.length > 0 && (
+                      <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
+                        {uploadedImages.map((img, idx) => (
+                          <div key={idx} className="relative w-16 h-16 rounded-xl overflow-hidden border border-slate-100 group">
+                            <img src={img} alt="pet upload preview" className="w-full h-full object-cover" />
+                            <button
+                              type="button"
+                              onClick={() => removeUploadedImage(idx)}
+                              className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-black"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Submit Actions */}
+                <div className="pt-4 flex flex-col-reverse sm:flex-row justify-end gap-3 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setShowWriteModal(false)}
+                    className="px-5 py-2.5 bg-white border border-slate-200 text-slate-600 text-xs font-black rounded-xl hover:bg-slate-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingStory}
+                    className="px-6 py-2.5 bg-[#58B368] hover:bg-[#4ea25d] text-white text-xs font-black rounded-xl shadow-md transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+                  >
+                    {isSubmittingStory ? (
+                      <>
+                        <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-t-white border-white/20" />
+                        <span>Publishing...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Publish My Story</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+              </form>
+
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
