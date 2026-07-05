@@ -85,19 +85,23 @@ export default function VaccinationGuide() {
     <div className="min-h-screen bg-gradient-to-b from-[#F4FBF3] via-white to-[#F4FBF3]">
 
       {/* ===== HERO ===== */}
-      <section className="relative bg-gradient-to-br from-[#58B368] via-[#4da85e] to-[#3a8f4a] py-14 sm:py-18 px-4 overflow-hidden">
-        <div className="absolute top-[-50px] right-[-50px] w-[250px] h-[250px] rounded-full bg-white/5 blur-2xl pointer-events-none" />
-        <div className="absolute bottom-[-30px] left-[10%] w-[180px] h-[180px] rounded-full bg-white/5 blur-xl pointer-events-none" />
+      <section 
+        className="relative py-16 sm:py-24 px-4 overflow-hidden bg-cover bg-center text-white rounded-b-[56px] shadow-xl"
+        style={{
+          backgroundImage: `linear-gradient(to right, rgba(11, 37, 20, 0.95), rgba(88, 179, 104, 0.35)), url('https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&q=80&w=1200')`
+        }}
+      >
+        <div className="absolute inset-0 bg-black/15 pointer-events-none" />
 
-        <div className="max-w-4xl mx-auto text-center relative z-10">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur border border-white/15 mb-5">
+        <div className="max-w-5xl mx-auto relative z-10 text-left">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur border border-white/15 mb-6">
             <Shield className="w-4 h-4 text-white" />
-            <span className="text-xs font-bold text-white/80">Based on WSAVA & AAHA Guidelines</span>
+            <span className="text-xs font-bold text-white/90">Based on WSAVA & AAHA Guidelines</span>
           </div>
-          <h1 className="font-display font-black text-3xl sm:text-4xl lg:text-5xl text-white tracking-tight">
+          <h1 className="font-display font-black text-3xl sm:text-4xl lg:text-5xl text-white tracking-tight leading-tight max-w-2xl">
             Pet Vaccination Guide
           </h1>
-          <p className="text-white/70 text-base sm:text-lg mt-4 max-w-2xl mx-auto leading-relaxed">
+          <p className="text-white/80 text-sm sm:text-base mt-4 max-w-xl leading-relaxed font-medium">
             Explore recommended vaccination schedules for dogs, cats, rabbits, birds, and exotic companions. Protect your pet with the right vaccines at the right time.
           </p>
         </div>
