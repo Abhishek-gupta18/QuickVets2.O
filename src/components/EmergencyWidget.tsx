@@ -28,6 +28,7 @@ export default function EmergencyWidget({
   const [activeEmergency, setActiveEmergency] = useState<EmergencyRequest | null>(null);
   const [activeStep, setActiveStep] = useState<1 | 2 | 3 | 4>(1);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [hoveredWorkflowStep, setHoveredWorkflowStep] = useState<number | null>(null);
 
   const commonHazards = [
     'Bleeding / Injury from accident',
@@ -354,32 +355,65 @@ export default function EmergencyWidget({
       </section>
 
       {/* ===== WHAT HAPPENS AFTER YOU SUBMIT ===== */}
-      <section className="py-24 bg-white border-b border-slate-100">
-        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-12">
-          
+      <section className="py-24 bg-slate-50 relative overflow-hidden border-b border-slate-100">
+        {/* Healthcare Pattern Background (<4% opacity) */}
+        <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.025] select-none">
+          <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="heartbeat-grid" width="120" height="120" patternUnits="userSpaceOnUse">
+                {/* ECG Heartbeat path */}
+                <path d="M 0 60 L 30 60 L 40 45 L 48 75 L 56 30 L 64 85 L 70 55 L 75 60 L 120 60" fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                {/* Medical Cross */}
+                <path d="M 95 15 L 105 15 M 100 10 L 100 20" stroke="#10B981" strokeWidth="2" strokeLinecap="round" />
+                {/* Paw print */}
+                <circle cx="20" cy="20" r="3" fill="#10B981" />
+                <circle cx="12" cy="14" r="2.5" fill="#10B981" />
+                <circle cx="28" cy="14" r="2.5" fill="#10B981" />
+                <circle cx="16" cy="7" r="2" fill="#10B981" />
+                <circle cx="24" cy="7" r="2" fill="#10B981" />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#heartbeat-grid)" />
+          </svg>
+          {/* Blurred green circle */}
+          <div className="absolute top-1/3 right-1/4 w-[500px] h-[500px] rounded-full bg-[#58B368] blur-[150px] opacity-60" />
+        </div>
+
+        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-12 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20 items-start">
             
             {/* Left: Heading & Reassurance Card */}
-            <div className="lg:col-span-4 text-left space-y-6">
-              <span className="text-xs font-black uppercase tracking-widest text-[#58B368] bg-green-50 px-3.5 py-2 rounded-lg border border-green-100 inline-block">Workflow Timeline</span>
+            <motion.div 
+              initial={{ opacity: 0, x: -50 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true, margin: "-100px" }}
+              transition={{ duration: 0.6 }}
+              className="lg:col-span-4 text-left space-y-6 lg:sticky lg:top-24"
+            >
+              <span className="text-xs font-black uppercase tracking-widest text-[#58B368] bg-green-50 px-3.5 py-2 rounded-lg border border-green-100 inline-block">
+                LIVE EMERGENCY WORKFLOW
+              </span>
               <h2 className="font-display font-black text-3xl text-gray-900 tracking-tight leading-tight">
-                What Happens After You Submit
+                What Happens After You Submit an Emergency Request
               </h2>
               <p className="text-gray-500 text-sm leading-relaxed">
-                Once an alert is filed, the QuickVet coordination system runs autonomously to secure clinical care in minutes.
+                QuickVet immediately begins coordinating nearby emergency veterinary clinics to ensure the fastest possible response.
               </p>
 
-              {/* Reassurance checklist */}
-              <div className="bg-slate-900 text-white rounded-3xl p-6 border border-slate-800 shadow-xl space-y-4">
-                <h4 className="font-display font-bold text-xs text-emerald-400 flex items-center gap-2 uppercase tracking-wider">
+              {/* Premium Emergency Card */}
+              <div className="bg-gradient-to-br from-[#0c2e17] via-[#092512] to-[#041208] text-white rounded-[24px] p-6 border border-emerald-500/20 shadow-[0_20px_50px_rgba(16,185,129,0.12)] backdrop-blur-md relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
+                <h4 className="font-display font-bold text-xs text-emerald-400 flex items-center gap-2 uppercase tracking-wider mb-4">
                   <Shield className="w-4.5 h-4.5" /> Immediately After Submission:
                 </h4>
-                <div className="space-y-3">
+                <div className="space-y-3.5">
                   {[
-                    'Your coordinates are securely sent to 10+ closest clinics',
-                    'Vet team will prepare surgery/triage bay',
-                    'You receive phone call match instructions in under 10m',
-                    'Direct communication coordinate feed is established',
+                    "Your GPS location is securely shared with verified emergency clinics",
+                    "Nearby veterinarians receive an instant emergency notification",
+                    "The closest available vet reviews your case immediately",
+                    "Your emergency contact receives confirmation",
+                    "Live tracking begins automatically",
+                    "Your pet's medical history is shared (if available)"
                   ].map((text, idx) => (
                     <div key={idx} className="flex items-start gap-2.5 text-xs text-slate-300">
                       <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
@@ -387,25 +421,226 @@ export default function EmergencyWidget({
                     </div>
                   ))}
                 </div>
-              </div>
-            </div>
 
-            {/* Right: Steps Grid */}
-            <div className="lg:col-span-8 space-y-5">
-              {[
-                { step: '01', title: 'Emergency Alert Sent', desc: 'Secure location, contact parameters, and symptoms are packaged and broadcasted.' },
-                { step: '02', title: 'Nearest Vet Accepts', desc: 'Responding veterinarians accept. Contact coordinates and live ETAs are matched.' },
-                { step: '03', title: 'Phone Confirmation', desc: 'Vet calls you directly to guide you through stabilization while moving to the clinic.' },
-                { step: '04', title: 'Treatment Begins', desc: 'The clinic team stabilizes your companion immediately upon your arrival.' },
-              ].map((item, idx) => (
-                <div key={idx} className="bg-slate-50 rounded-3xl p-6 border border-slate-200/50 text-left relative flex items-start gap-5 hover:shadow-sm transition-shadow">
-                  <span className="font-display font-black text-2xl text-[#58B368] bg-green-50 w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 border border-green-100">{item.step}</span>
-                  <div>
-                    <h4 className="font-display font-black text-base text-slate-900 mb-1">{item.title}</h4>
-                    <p className="text-xs text-slate-500 leading-relaxed">{item.desc}</p>
-                  </div>
+                <div className="mt-6 pt-5 border-t border-slate-800 flex">
+                  <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 text-emerald-400 font-extrabold text-[11px] rounded-xl border border-emerald-500/20">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-[pulse_1.5s_infinite]" />
+                    Average response time: Under 7 minutes
+                  </span>
                 </div>
-              ))}
+              </div>
+            </motion.div>
+
+            {/* Right: Steps Grid & Live Progress Tracker */}
+            <div className="lg:col-span-8 relative text-left">
+              {/* Vertical connecting line */}
+              <div className="absolute left-[24px] md:left-[44px] top-[40px] bottom-[40px] w-[4px] bg-slate-200/60 rounded-full z-0" />
+              
+              {/* Active connecting progress line */}
+              {(() => {
+                const currentProgressStep = activeEmergency ? activeStep : (hoveredWorkflowStep !== null ? hoveredWorkflowStep + 1 : 1);
+                return (
+                  <div 
+                    className="absolute left-[24px] md:left-[44px] top-[40px] w-[4px] bg-gradient-to-b from-[#58B368] to-[#2D855A] rounded-full transition-all duration-500 z-0"
+                    style={{
+                      height: `${Math.max(0, ((currentProgressStep - 1) / 3) * 100)}%`,
+                      maxHeight: 'calc(100% - 80px)'
+                    }}
+                  />
+                );
+              })()}
+
+              <motion.div
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, margin: "-100px" }}
+                variants={{
+                  visible: { transition: { staggerChildren: 0.15 } }
+                }}
+                className="space-y-6 relative z-10"
+                onMouseLeave={() => setHoveredWorkflowStep(null)}
+              >
+                {[
+                  {
+                    stepNum: 1,
+                    step: '01',
+                    title: 'Emergency Alert Sent',
+                    timeBadge: '⚡ 5 Seconds',
+                    statusType: 'Completed',
+                    desc: 'Your emergency details, location, symptoms, and contact information are securely broadcast to nearby verified emergency veterinary clinics.',
+                    icon: (
+                      <svg viewBox="0 0 100 100" className="w-16 h-16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                          <linearGradient id="emerg-step1" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stopColor="#FEE2E2" />
+                            <stop offset="100%" stopColor="#EF4444" />
+                          </linearGradient>
+                        </defs>
+                        <rect x="25" y="10" width="50" height="80" rx="10" fill="white" stroke="#94A3B8" strokeWidth="2.5" />
+                        <line x1="45" y1="16" x2="55" y2="16" stroke="#94A3B8" strokeWidth="2.5" strokeLinecap="round" />
+                        <circle cx="50" cy="50" r="16" fill="url(#emerg-step1)" opacity="0.15" />
+                        <circle cx="50" cy="50" r="8" fill="url(#emerg-step1)" />
+                        <circle cx="38" cy="30" r="2" fill="#EF4444" />
+                        <circle cx="62" cy="70" r="2" fill="#EF4444" />
+                        <path d="M 50 35 L 50 45" stroke="white" strokeWidth="2" strokeLinecap="round" />
+                        <circle cx="50" cy="50" r="1" fill="white" />
+                        <circle cx="50" cy="50" r="12" stroke="#EF4444" strokeWidth="1" strokeDasharray="3 3" className="animate-ping" style={{ transformOrigin: '50px 50px' }} />
+                      </svg>
+                    )
+                  },
+                  {
+                    stepNum: 2,
+                    step: '02',
+                    title: 'Nearest Veterinarian Accepts',
+                    timeBadge: 'Usually within 2 Minutes',
+                    statusType: 'Responders Searching',
+                    desc: 'The nearest available veterinarian reviews your case, accepts the emergency, and begins preparing the clinic before your arrival.',
+                    icon: (
+                      <svg viewBox="0 0 100 100" className="w-16 h-16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                          <linearGradient id="emerg-step2" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stopColor="#D1FAE5" />
+                            <stop offset="100%" stopColor="#10B981" />
+                          </linearGradient>
+                        </defs>
+                        <circle cx="50" cy="36" r="16" fill="url(#emerg-step2)" />
+                        <path d="M26 75C26 62 34 56 50 56C66 56 74 62 74 75" fill="url(#emerg-step2)" />
+                        <circle cx="50" cy="50" r="32" stroke="#E2E8F0" strokeWidth="2.5" />
+                        <path d="M40 38C40 48 46 54 50 54C54 54 60 48 60 38" stroke="#1E293B" strokeWidth="2.5" strokeLinecap="round" />
+                        <circle cx="70" cy="30" r="8" fill="#10B981" />
+                        <path d="M67 30L69 32L73 28" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )
+                  },
+                  {
+                    stepNum: 3,
+                    step: '03',
+                    title: 'Phone Confirmation',
+                    timeBadge: 'Within 5 Minutes',
+                    statusType: 'Phone Confirmation',
+                    desc: 'A veterinarian contacts you with first-aid instructions, confirms your route, and shares an estimated arrival time.',
+                    icon: (
+                      <svg viewBox="0 0 100 100" className="w-16 h-16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="50" cy="50" r="32" fill="#EFF6FF" stroke="#3B82F6" strokeWidth="2" />
+                        <path d="M35 38C35 34 38 34 41 37L45 41C47 43 47 45 44 47C48 53 52 57 58 61C60 58 62 58 64 60L68 64C71 67 71 70 67 70C52 70 35 53 35 38Z" fill="#3B82F6" />
+                        <path d="M56 32C62 34 66 38 68 44" stroke="#3B82F6" strokeWidth="2.5" strokeLinecap="round" />
+                        <path d="M62 26C70 29 76 35 79 43" stroke="#93C5FD" strokeWidth="2" strokeLinecap="round" />
+                      </svg>
+                    )
+                  },
+                  {
+                    stepNum: 4,
+                    step: '04',
+                    title: 'Treatment Begins',
+                    timeBadge: 'Upon Arrival',
+                    statusType: 'Treatment Started',
+                    desc: 'Your pet receives immediate professional treatment while QuickVet securely records consultation details and medical history.',
+                    icon: (
+                      <svg viewBox="0 0 100 100" className="w-16 h-16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                          <linearGradient id="emerg-step4" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stopColor="#A7F3D0" />
+                            <stop offset="100%" stopColor="#059669" />
+                          </linearGradient>
+                        </defs>
+                        <circle cx="50" cy="50" r="32" fill="#ECFDF5" stroke="#059669" strokeWidth="2" />
+                        <rect x="44" y="32" width="12" height="36" rx="3" fill="url(#emerg-step4)" />
+                        <rect x="32" y="44" width="36" height="12" rx="3" fill="url(#emerg-step4)" />
+                        <circle cx="50" cy="50" r="2.5" fill="white" />
+                        <circle cx="45" cy="46" r="1.5" fill="white" />
+                        <circle cx="55" cy="46" r="1.5" fill="white" />
+                        <circle cx="47" cy="42" r="1.2" fill="white" />
+                        <circle cx="53" cy="42" r="1.2" fill="white" />
+                      </svg>
+                    )
+                  }
+                ].map((item, idx) => {
+                  const currentProgressStep = activeEmergency ? activeStep : (hoveredWorkflowStep !== null ? hoveredWorkflowStep + 1 : 1);
+                  const isCompleted = currentProgressStep > item.stepNum;
+                  const isActive = currentProgressStep === item.stepNum;
+                  const isFuture = currentProgressStep < item.stepNum;
+                  
+                  const getStatusLabel = () => {
+                    if (isCompleted) {
+                      return (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 text-[10px] font-black rounded-lg border border-emerald-200">
+                          ✓ Completed
+                        </span>
+                      );
+                    }
+                    if (isActive) {
+                      if (item.stepNum === 4) {
+                        return (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-700 text-[10px] font-black rounded-lg border border-blue-200 animate-pulse">
+                            🏥 Treatment Started
+                          </span>
+                        );
+                      }
+                      return (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-500 text-white text-[10px] font-black rounded-lg shadow-sm animate-pulse">
+                          🟢 In Progress
+                        </span>
+                      );
+                    }
+                    return (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-400 text-[10px] font-black rounded-lg border border-slate-200">
+                        ⏳ Waiting
+                      </span>
+                    );
+                  };
+
+                  return (
+                    <motion.div 
+                      key={idx} 
+                      variants={{
+                        hidden: { opacity: 0, y: 25 },
+                        visible: { opacity: 1, y: 0, transition: { duration: 0.5 } }
+                      }}
+                      onMouseEnter={() => setHoveredWorkflowStep(idx)}
+                      className={`relative bg-white/90 backdrop-blur-md rounded-[24px] p-6 border border-green-100/40 text-left flex flex-col md:flex-row items-start md:items-center gap-6 shadow-[0_8px_30px_rgb(0,0,0,0.015)] hover:shadow-[0_20px_45px_rgba(88,179,104,0.08)] hover:-translate-y-1.5 hover:scale-[1.02] transition-all duration-200 cursor-default group ml-12 md:ml-20 ${
+                        isFuture ? 'opacity-55' : 'opacity-100'
+                      }`}
+                    >
+                      {/* Timeline node circle positioned absolutely to line up with connector */}
+                      <div 
+                        className={`absolute left-[-28px] md:left-[-54px] top-1/2 -translate-y-1/2 w-[12px] h-[12px] md:w-[16px] md:h-[16px] rounded-full border-4 border-slate-50 z-10 transition-all duration-300 ${
+                          isCompleted ? 'bg-[#58B368] shadow-[0_0_8px_rgba(88,179,104,0.4)]' : 
+                          isActive ? 'bg-[#58B368] scale-125 animate-pulse shadow-[0_0_12px_#58B368]' : 
+                          'bg-slate-200'
+                        }`}
+                      />
+
+                      {/* Step Illustration */}
+                      <div className="w-16 h-16 flex-shrink-0 group-hover:scale-105 transition-transform duration-300 mx-auto md:mx-0">
+                        {item.icon}
+                      </div>
+
+                      {/* Content Area */}
+                      <div className="flex-grow space-y-2 text-center md:text-left">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div className="flex items-center justify-center md:justify-start gap-2.5">
+                            <span className={`w-5 h-5 rounded-md flex items-center justify-center text-[9px] font-black text-white bg-gradient-to-br from-[#58B368] to-[#2D855A] shadow-sm`}>
+                              {item.step}
+                            </span>
+                            <h4 className="font-display font-black text-base text-slate-900 leading-tight">
+                              {item.title}
+                            </h4>
+                          </div>
+                          <div className="flex items-center justify-center gap-2">
+                            <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-100 text-slate-500 rounded-md border border-slate-200">
+                              {item.timeBadge}
+                            </span>
+                            {getStatusLabel()}
+                          </div>
+                        </div>
+                        <p className="text-xs text-slate-500 leading-relaxed max-w-2xl font-medium">
+                          {item.desc}
+                        </p>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </motion.div>
             </div>
 
           </div>
