@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
+import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import { rateLimit } from 'express-rate-limit';
 import crypto from 'crypto';
@@ -79,6 +80,7 @@ const authLimiter = rateLimit({
   }
 });
 
+app.use(helmet());
 app.use(express.json());
 app.use(cookieParser());
 
