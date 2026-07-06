@@ -90,7 +90,7 @@ export default function VaccinationGuide({ currentUser, clinics }: { currentUser
       <section 
         className="relative py-16 sm:py-24 px-4 overflow-hidden bg-cover bg-center text-white rounded-b-[56px] shadow-xl"
         style={{
-          backgroundImage: `linear-gradient(to right, rgba(11, 37, 20, 0.95), rgba(88, 179, 104, 0.35)), url('https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&q=80&w=1200')`
+          backgroundImage: `linear-gradient(to right, rgba(11, 37, 20, 0.95), rgba(88, 179, 104, 0.35)), url('/vaccination-hero.jpg')`
         }}
       >
         <div className="absolute inset-0 bg-black/15 pointer-events-none" />
