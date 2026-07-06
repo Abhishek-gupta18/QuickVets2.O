@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Shield, ChevronDown, AlertCircle, Syringe, Info, CheckCircle2, Clock, Star, CalendarDays } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import VaccinationBooking from './VaccinationBooking';
 
 type Species = 'dogs' | 'cats' | 'rabbits' | 'birds' | 'exotics';
@@ -111,180 +112,248 @@ export default function VaccinationGuide({ currentUser, clinics }: { currentUser
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
 
-        {/* ===== SPECIES TABS ===== */}
-        <div className="flex flex-wrap justify-center gap-2 bg-white rounded-2xl border border-slate-100 p-2 shadow-sm">
-          {(Object.keys(vaccinationData) as Species[]).map((sp) => {
-            const d = vaccinationData[sp];
-            return (
-              <button
-                key={sp}
-                onClick={() => { setActiveSpecies(sp); setExpandedVaccine(null); }}
-                className={`flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold transition-all cursor-pointer ${
-                  activeSpecies === sp ? 'bg-[#58B368] text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'
-                }`}
-              >
-                <span className="text-lg">{d.emoji}</span> {d.label}
-              </button>
-            );
-          })}
+        {/* ===== CHOOSE YOUR COMPANION SEGMENTED NAV ===== */}
+        <div className="text-center space-y-6 max-w-4xl mx-auto">
+          <div className="space-y-1.5">
+            <h2 className="font-display font-black text-2xl sm:text-3xl text-gray-900 tracking-tight">
+              Choose Your Pet
+            </h2>
+            <p className="text-slate-500 text-sm leading-relaxed max-w-md mx-auto">
+              Select your companion to view the recommended vaccination schedule.
+            </p>
+          </div>
+
+          <div className="relative bg-white/90 backdrop-blur-md rounded-[24px] border border-[#E5F6EC] p-3 shadow-[0_15px_45px_rgba(0,0,0,0.03)] w-full">
+            <div className="flex overflow-x-auto md:overflow-x-visible snap-x snap-mandatory scrollbar-none gap-2 md:grid md:grid-cols-5">
+              {[
+                { key: 'dogs', label: 'Dogs', sub: 'Canine', img: '/dog-carousel.png' },
+                { key: 'cats', label: 'Cats', sub: 'Feline', img: '/cat-carousel.png' },
+                { key: 'rabbits', label: 'Rabbits', sub: 'Lagomorph', img: '/rabbit-carousel.png' },
+                { key: 'birds', label: 'Birds', sub: 'Avian', img: '/bird-carousel.png' },
+                { key: 'exotics', label: 'Exotics', sub: 'Special Care', img: '/exotic-carousel.png' },
+              ].map((item) => {
+                const isActive = activeSpecies === item.key;
+                return (
+                  <button
+                    key={item.key}
+                    onClick={() => {
+                      setActiveSpecies(item.key as Species);
+                      setExpandedVaccine(null);
+                    }}
+                    className={`relative snap-center flex-shrink-0 w-[65vw] md:w-auto flex items-center gap-4 p-3 rounded-2xl text-left transition-all duration-250 cursor-pointer overflow-hidden ${
+                      isActive 
+                        ? 'bg-gradient-to-br from-[#2D855A] to-[#58B368] text-white shadow-[0_8px_25px_rgba(45,133,90,0.25)] scale-[1.03]' 
+                        : 'text-slate-700 hover:bg-[#E5F6EC]/35 hover:-translate-y-0.5'
+                    }`}
+                  >
+                    {/* Portrait Circle container */}
+                    <div className="relative flex-shrink-0">
+                      <div className={`w-14 h-14 rounded-full overflow-hidden border-2 transition-all duration-300 ${
+                        isActive 
+                          ? 'border-white ring-2 ring-emerald-400 ring-offset-2 ring-offset-emerald-600 scale-110' 
+                          : 'border-slate-200'
+                      }`}>
+                        <img 
+                          src={item.img} 
+                          alt={item.label} 
+                          className={`w-full h-full object-cover transition-transform duration-300 ${
+                            isActive ? 'scale-110' : 'group-hover:scale-105'
+                          }`}
+                        />
+                      </div>
+                      
+                      {/* Soft Pulsing Ring for Active State */}
+                      {isActive && (
+                        <div className="absolute inset-0 rounded-full border-2 border-emerald-400 animate-ping opacity-75 pointer-events-none" />
+                      )}
+                    </div>
+
+                    <div className="min-w-0">
+                      <h3 className={`font-display font-black text-sm tracking-wide transition-colors ${
+                        isActive ? 'text-white' : 'text-slate-800'
+                      }`}>
+                        {item.label}
+                      </h3>
+                      <p className={`text-[10px] font-bold uppercase tracking-wider transition-colors ${
+                        isActive ? 'text-emerald-100' : 'text-slate-400'
+                      }`}>
+                        {item.sub}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
 
-        {/* ===== SPECIES NOTE ===== */}
-        {data.note && (
-          <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 flex items-start gap-3">
-            <Info className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-            <p className="text-xs text-amber-800 leading-relaxed">{data.note}</p>
-          </div>
-        )}
-
-        {/* ===== TIMELINE ===== */}
-        <section>
-          <h2 className="font-display font-black text-xl text-slate-900 mb-4">Vaccination Timeline</h2>
-          <div className="flex items-center gap-2 overflow-x-auto pb-2">
-            {data.timeline.map((step, idx) => (
-              <div key={idx} className="flex items-center gap-2 flex-shrink-0">
-                <div className="bg-white border border-green-200 rounded-xl px-4 py-2.5 shadow-sm">
-                  <span className="text-xs font-black text-[#58B368]">{step}</span>
-                </div>
-                {idx < data.timeline.length - 1 && (
-                  <div className="w-6 h-0.5 bg-green-200 flex-shrink-0" />
-                )}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeSpecies}
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            transition={{ duration: 0.3 }}
+            className="space-y-10"
+          >
+            {/* ===== SPECIES NOTE ===== */}
+            {data.note && (
+              <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 flex items-start gap-3">
+                <Info className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-800 leading-relaxed">{data.note}</p>
               </div>
-            ))}
-          </div>
-        </section>
+            )}
 
-        {/* ===== VACCINE CARDS ===== */}
-        <section className="space-y-4">
-          <h2 className="font-display font-black text-xl text-slate-900">Recommended Vaccines</h2>
-
-          {data.vaccines.map((vaccine) => {
-            const isExpanded = expandedVaccine === vaccine.name;
-            return (
-              <div key={vaccine.name} className="bg-white rounded-[20px] border border-slate-100 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
-                {/* Card header */}
-                <button
-                  onClick={() => setExpandedVaccine(isExpanded ? null : vaccine.name)}
-                  className="w-full p-5 text-left flex items-start gap-4 cursor-pointer"
-                >
-                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${vaccine.core ? 'bg-green-50 border border-green-100' : 'bg-slate-50 border border-slate-100'}`}>
-                    <Syringe className={`w-5 h-5 ${vaccine.core ? 'text-green-600' : 'text-slate-400'}`} />
+            {/* ===== TIMELINE ===== */}
+            <section>
+              <h2 className="font-display font-black text-xl text-slate-900 mb-4">Vaccination Timeline</h2>
+              <div className="flex items-center gap-2 overflow-x-auto pb-2">
+                {data.timeline.map((step, idx) => (
+                  <div key={idx} className="flex items-center gap-2 flex-shrink-0">
+                    <div className="bg-white border border-green-200 rounded-xl px-4 py-2.5 shadow-sm">
+                      <span className="text-xs font-black text-[#58B368]">{step}</span>
+                    </div>
+                    {idx < data.timeline.length - 1 && (
+                      <div className="w-6 h-0.5 bg-green-200 flex-shrink-0" />
+                    )}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-display font-black text-base text-slate-900">{vaccine.name}</h3>
-                      <span className={`px-2.5 py-0.5 rounded-lg text-[9px] font-black ${vaccine.core ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-slate-100 text-slate-600 border border-slate-200'}`}>
-                        {vaccine.core ? 'Core' : 'Non-Core'}
-                      </span>
-                      <span className={`px-2.5 py-0.5 rounded-lg text-[9px] font-black ${
-                        vaccine.importance === 'Critical' ? 'bg-rose-50 text-rose-700 border border-rose-200' :
-                        vaccine.importance === 'High' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
-                        'bg-slate-50 text-slate-600 border border-slate-100'
-                      }`}>
-                        {vaccine.importance}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">{vaccine.description}</p>
+                ))}
+              </div>
+            </section>
 
-                    {/* Quick info row */}
-                    <div className="flex flex-wrap gap-3 mt-3 text-[10px] font-semibold text-slate-500">
-                      <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {vaccine.age}</span>
-                      <span className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3 text-green-500" /> Booster: {vaccine.booster}</span>
-                    </div>
+            {/* ===== VACCINE CARDS ===== */}
+            <section className="space-y-4">
+              <h2 className="font-display font-black text-xl text-slate-900">Recommended Vaccines</h2>
 
-                    {/* Diseases protected */}
-                    <div className="flex flex-wrap gap-1.5 mt-3">
-                      {vaccine.diseases.map((d) => (
-                        <span key={d} className="px-2 py-0.5 bg-green-50/60 border border-green-100/60 text-green-800 text-[9px] font-bold rounded-md">{d}</span>
-                      ))}
-                    </div>
-                  </div>
-                  <ChevronDown className={`w-5 h-5 text-slate-400 flex-shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
-                </button>
+              {data.vaccines.map((vaccine) => {
+                const isExpanded = expandedVaccine === vaccine.name;
+                return (
+                  <div key={vaccine.name} className="bg-white rounded-[20px] border border-slate-100 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+                    {/* Card header */}
+                    <button
+                      onClick={() => setExpandedVaccine(isExpanded ? null : vaccine.name)}
+                      className="w-full p-5 text-left flex items-start gap-4 cursor-pointer"
+                    >
+                      <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${vaccine.core ? 'bg-green-50 border border-green-100' : 'bg-slate-50 border border-slate-100'}`}>
+                        <Syringe className={`w-5 h-5 ${vaccine.core ? 'text-green-600' : 'text-slate-400'}`} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-display font-black text-base text-slate-900">{vaccine.name}</h3>
+                          <span className={`px-2.5 py-0.5 rounded-lg text-[9px] font-black ${vaccine.core ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-slate-100 text-slate-600 border border-slate-200'}`}>
+                            {vaccine.core ? 'Core' : 'Non-Core'}
+                          </span>
+                          <span className={`px-2.5 py-0.5 rounded-lg text-[9px] font-black ${
+                            vaccine.importance === 'Critical' ? 'bg-rose-50 text-rose-700 border border-rose-200' :
+                            vaccine.importance === 'High' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+                            'bg-slate-50 text-slate-600 border border-slate-100'
+                          }`}>
+                            {vaccine.importance}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">{vaccine.description}</p>
 
-                {/* Expanded disease info */}
-                {isExpanded && vaccine.diseaseInfo && (
-                  <div className="px-5 pb-5 pt-0 space-y-4">
-                    <div className="bg-slate-50 rounded-2xl border border-slate-100 p-5 space-y-3">
-                      <h4 className="font-display font-bold text-sm text-slate-800">Disease Information</h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                          <span className="text-[9px] font-black text-slate-400 uppercase">Overview</span>
-                          <p className="text-xs text-slate-600 leading-relaxed">{vaccine.diseaseInfo.overview}</p>
+                        {/* Quick info row */}
+                        <div className="flex flex-wrap gap-3 mt-3 text-[10px] font-semibold text-slate-500">
+                          <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {vaccine.age}</span>
+                          <span className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3 text-green-500" /> Booster: {vaccine.booster}</span>
                         </div>
-                        <div className="space-y-1">
-                          <span className="text-[9px] font-black text-slate-400 uppercase">Symptoms</span>
-                          <p className="text-xs text-slate-600 leading-relaxed">{vaccine.diseaseInfo.symptoms}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <span className="text-[9px] font-black text-slate-400 uppercase">Transmission</span>
-                          <p className="text-xs text-slate-600 leading-relaxed">{vaccine.diseaseInfo.transmission}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <span className="text-[9px] font-black text-slate-400 uppercase">Severity</span>
-                          <p className="text-xs text-slate-600 leading-relaxed font-semibold">{vaccine.diseaseInfo.severity}</p>
+
+                        {/* Diseases protected */}
+                        <div className="flex flex-wrap gap-1.5 mt-3">
+                          {vaccine.diseases.map((d) => (
+                            <span key={d} className="px-2 py-0.5 bg-green-50/60 border border-green-100/60 text-green-800 text-[9px] font-bold rounded-md">{d}</span>
+                          ))}
                         </div>
                       </div>
-                    </div>
-                    {currentUser && currentUser.pets && currentUser.pets.length > 0 && clinics && clinics.length > 0 && (
-                      <button onClick={() => setBookingVaccine(vaccine)}
-                        className="w-full py-3.5 bg-[#58B368] hover:bg-green-600 text-white font-extrabold text-sm rounded-xl shadow-md shadow-green-200/40 transition-all active:scale-[0.97] flex items-center justify-center gap-2">
-                        <CalendarDays className="w-4 h-4" /> Book This Vaccination
-                      </button>
-                    )}
-                    {!currentUser && (
-                      <p className="text-xs text-slate-500 text-center bg-slate-50 border border-slate-100 rounded-xl p-3">Sign in to book vaccination appointments.</p>
+                      <ChevronDown className={`w-5 h-5 text-slate-400 flex-shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {/* Expanded disease info */}
+                    {isExpanded && vaccine.diseaseInfo && (
+                      <div className="px-5 pb-5 pt-0 space-y-4">
+                        <div className="bg-slate-50 rounded-2xl border border-slate-100 p-5 space-y-3">
+                          <h4 className="font-display font-bold text-sm text-slate-800">Disease Information</h4>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <span className="text-[9px] font-black text-slate-400 uppercase">Overview</span>
+                              <p className="text-xs text-slate-600 leading-relaxed">{vaccine.diseaseInfo.overview}</p>
+                            </div>
+                            <div className="space-y-1">
+                              <span className="text-[9px] font-black text-slate-400 uppercase">Symptoms</span>
+                              <p className="text-xs text-slate-600 leading-relaxed">{vaccine.diseaseInfo.symptoms}</p>
+                            </div>
+                            <div className="space-y-1">
+                              <span className="text-[9px] font-black text-slate-400 uppercase">Transmission</span>
+                              <p className="text-xs text-slate-600 leading-relaxed">{vaccine.diseaseInfo.transmission}</p>
+                            </div>
+                            <div className="space-y-1">
+                              <span className="text-[9px] font-black text-slate-400 uppercase">Severity</span>
+                              <p className="text-xs text-slate-600 leading-relaxed font-semibold">{vaccine.diseaseInfo.severity}</p>
+                            </div>
+                          </div>
+                        </div>
+                        {currentUser && currentUser.pets && currentUser.pets.length > 0 && clinics && clinics.length > 0 && (
+                          <button onClick={() => setBookingVaccine(vaccine)}
+                            className="w-full py-3.5 bg-[#58B368] hover:bg-green-600 text-white font-extrabold text-sm rounded-xl shadow-md shadow-green-200/40 transition-all active:scale-[0.97] flex items-center justify-center gap-2">
+                            <CalendarDays className="w-4 h-4" /> Book This Vaccination
+                          </button>
+                        )}
+                        {!currentUser && (
+                          <p className="text-xs text-slate-500 text-center bg-slate-50 border border-slate-100 rounded-xl p-3">Sign in to book vaccination appointments.</p>
+                        )}
+                      </div>
                     )}
                   </div>
-                )}
-              </div>
-            );
-          })}
-        </section>
+                );
+              })}
+            </section>
 
-        {/* ===== CORE VS NON-CORE ===== */}
-        <section className="bg-white rounded-[22px] border border-slate-100 p-6 sm:p-8 shadow-sm">
-          <h2 className="font-display font-black text-xl text-slate-900 mb-5">Core vs Non-Core Vaccines</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <div className="bg-green-50/50 rounded-2xl border border-green-100 p-5 space-y-3">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
-                  <CheckCircle2 className="w-4.5 h-4.5 text-green-600" />
+            {/* ===== CORE VS NON-CORE ===== */}
+            <section className="bg-white rounded-[22px] border border-slate-100 p-6 sm:p-8 shadow-sm">
+              <h2 className="font-display font-black text-xl text-slate-900 mb-5">Core vs Non-Core Vaccines</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div className="bg-green-50/50 rounded-2xl border border-green-100 p-5 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
+                      <CheckCircle2 className="w-4.5 h-4.5 text-green-600" />
+                    </div>
+                    <h3 className="font-display font-black text-sm text-green-800">Core Vaccines</h3>
+                  </div>
+                  <p className="text-xs text-slate-600 leading-relaxed">Essential for <strong>every pet</strong> regardless of lifestyle. Protect against highly contagious, severe, or fatal diseases with significant public health implications.</p>
+                  <ul className="text-[11px] text-slate-600 space-y-1">
+                    <li>• Recommended for all animals of that species</li>
+                    <li>• Protect against life-threatening diseases</li>
+                    <li>• Often legally required (e.g., Rabies)</li>
+                  </ul>
                 </div>
-                <h3 className="font-display font-black text-sm text-green-800">Core Vaccines</h3>
-              </div>
-              <p className="text-xs text-slate-600 leading-relaxed">Essential for <strong>every pet</strong> regardless of lifestyle. Protect against highly contagious, severe, or fatal diseases with significant public health implications.</p>
-              <ul className="text-[11px] text-slate-600 space-y-1">
-                <li>• Recommended for all animals of that species</li>
-                <li>• Protect against life-threatening diseases</li>
-                <li>• Often legally required (e.g., Rabies)</li>
-              </ul>
-            </div>
-            <div className="bg-slate-50 rounded-2xl border border-slate-100 p-5 space-y-3">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-slate-200 flex items-center justify-center">
-                  <Star className="w-4.5 h-4.5 text-slate-500" />
+                <div className="bg-slate-50 rounded-2xl border border-slate-100 p-5 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-slate-200 flex items-center justify-center">
+                      <Star className="w-4.5 h-4.5 text-slate-500" />
+                    </div>
+                    <h3 className="font-display font-black text-sm text-slate-700">Non-Core Vaccines</h3>
+                  </div>
+                  <p className="text-xs text-slate-600 leading-relaxed">Recommended based on <strong>individual risk factors</strong>. Your vet will assess whether these are needed.</p>
+                  <ul className="text-[11px] text-slate-600 space-y-1">
+                    <li>• Lifestyle-dependent (outdoor access, boarding)</li>
+                    <li>• Geographic risk (endemic diseases)</li>
+                    <li>• Travel or multi-pet environments</li>
+                    <li>• Exposure to wildlife or other animals</li>
+                  </ul>
                 </div>
-                <h3 className="font-display font-black text-sm text-slate-700">Non-Core Vaccines</h3>
               </div>
-              <p className="text-xs text-slate-600 leading-relaxed">Recommended based on <strong>individual risk factors</strong>. Your vet will assess whether these are needed.</p>
-              <ul className="text-[11px] text-slate-600 space-y-1">
-                <li>• Lifestyle-dependent (outdoor access, boarding)</li>
-                <li>• Geographic risk (endemic diseases)</li>
-                <li>• Travel or multi-pet environments</li>
-                <li>• Exposure to wildlife or other animals</li>
-              </ul>
-            </div>
-          </div>
-        </section>
+            </section>
 
-        {/* ===== DISCLAIMER ===== */}
-        <section className="bg-slate-50 rounded-2xl border border-slate-200 p-5 flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-slate-400 flex-shrink-0 mt-0.5" />
-          <div className="text-xs text-slate-600 leading-relaxed">
-            <strong className="text-slate-700">Important Disclaimer:</strong> Vaccination recommendations may vary depending on your pet's age, medical history, geographic location, and your veterinarian's professional assessment. This guide is based on widely accepted guidelines from WSAVA and AAHA but does not replace personalized veterinary advice. Always consult a licensed veterinarian before making healthcare decisions for your pet.
-          </div>
-        </section>
+            {/* ===== DISCLAIMER ===== */}
+            <section className="bg-slate-50 rounded-2xl border border-slate-200 p-5 flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-slate-400 flex-shrink-0 mt-0.5" />
+              <div className="text-xs text-slate-600 leading-relaxed">
+                <strong className="text-slate-700">Important Disclaimer:</strong> Vaccination recommendations may vary depending on your pet's age, medical history, geographic location, and your veterinarian's professional assessment. This guide is based on widely accepted guidelines from WSAVA and AAHA but does not replace personalized veterinary advice. Always consult a licensed veterinarian before making healthcare decisions for your pet.
+              </div>
+            </section>
+          </motion.div>
+        </AnimatePresence>
 
       </div>
 
