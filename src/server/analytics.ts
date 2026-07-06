@@ -108,6 +108,12 @@ function cleanText(value: unknown): string {
 }
 
 function buildSeriesQuery(labelSql: string, fromSql: string, whereSql = ''): string {
+  if (!/^[a-zA-Z0-9_]+$/.test(labelSql)) {
+    throw new Error('Invalid input');
+  }
+  if (!/^[a-zA-Z0-9_]+$/.test(fromSql)) {
+    throw new Error('Invalid input');
+  }
   return `
     SELECT ${labelSql} AS label, COUNT(*)::int AS value
     FROM ${fromSql}
