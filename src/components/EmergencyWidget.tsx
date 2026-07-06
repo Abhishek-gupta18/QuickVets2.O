@@ -29,6 +29,7 @@ export default function EmergencyWidget({
   const [activeStep, setActiveStep] = useState<1 | 2 | 3 | 4>(1);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [hoveredWorkflowStep, setHoveredWorkflowStep] = useState<number | null>(null);
+  const [expandedCard, setExpandedCard] = useState<number | null>(null);
 
   const commonHazards = [
     'Bleeding / Injury from accident',
@@ -682,44 +683,407 @@ export default function EmergencyWidget({
       </section>
 
       {/* ===== EMERGENCY SITUATIONS WE HANDLE ===== */}
-      <section className="py-24 bg-white border-b border-slate-100">
-        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-12">
+      <section className="py-24 bg-white relative overflow-hidden border-b border-slate-100">
+        {/* Healthcare Pattern Background (<4% opacity) */}
+        <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.025] select-none">
+          <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="emergency-grid" width="120" height="120" patternUnits="userSpaceOnUse">
+                {/* ECG Heartbeat path */}
+                <path d="M 0 60 L 30 60 L 40 45 L 48 75 L 56 30 L 64 85 L 70 55 L 75 60 L 120 60" fill="none" stroke="#EF4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                {/* Emergency SOS Ring */}
+                <circle cx="100" cy="30" r="8" stroke="#EF4444" strokeWidth="2" strokeDasharray="3 3" />
+                {/* Paw print */}
+                <circle cx="20" cy="20" r="3" fill="#EF4444" />
+                <circle cx="12" cy="14" r="2.5" fill="#EF4444" />
+                <circle cx="28" cy="14" r="2.5" fill="#EF4444" />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#emergency-grid)" />
+          </svg>
+          {/* Blurred amber circle */}
+          <div className="absolute bottom-1/4 left-1/4 w-[400px] h-[400px] rounded-full bg-amber-500 blur-[130px] opacity-40" />
+        </div>
+
+        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-12 relative z-10 w-full">
           
-          <div className="text-left mb-16 space-y-3">
-            <span className="text-xs font-black uppercase tracking-widest text-red-500 bg-red-50 px-3.5 py-2 rounded-lg border border-red-100 inline-block">Symptom Guide</span>
+          <div className="text-left mb-16 space-y-4">
+            <span className="text-xs font-black uppercase tracking-widest text-[#2D855A] bg-green-50 px-3.5 py-2 rounded-lg border border-green-100 inline-block">
+              24/7 EMERGENCY CARE
+            </span>
             <h2 className="font-display font-black text-3xl sm:text-4xl text-gray-900 tracking-tight leading-tight">
               Emergency Situations We Handle
             </h2>
-            <p className="text-slate-500 text-sm max-w-xl">
-              If your companion animal exhibits any of the critical symptoms below, immediately submit the emergency form above.
+            <p className="text-slate-500 text-sm max-w-2xl leading-relaxed">
+              If your pet is experiencing any of the following conditions, submit an emergency request immediately. Our verified veterinarians are available around the clock to provide urgent assistance.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* Cards container: snaps on mobile, grids on larger screens */}
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-100px" }}
+            variants={{
+              visible: { transition: { staggerChildren: 0.08 } }
+            }}
+            className="flex md:grid overflow-x-auto md:overflow-x-visible snap-x snap-mandatory md:snap-none gap-6 pb-8 md:grid-cols-2 lg:grid-cols-4 scrollbar-none"
+          >
             {[
-              { title: 'Road Accidents', desc: 'Vehicular trauma, open wounds, fractures, or shock.', icon: Truck, color: 'text-red-500 bg-red-50' },
-              { title: 'Poisoning', desc: 'Ingestion of chocolate, chemical cleaning fluids, or human medications.', icon: AlertCircle, color: 'text-[#58B368] bg-green-50' },
-              { title: 'Difficulty Breathing', desc: 'Heavy gasping, choking, choking sounds, blue-tinted gums.', icon: HeartPulse, color: 'text-blue-500 bg-blue-50' },
-              { title: 'Severe Bleeding', desc: 'Active continuous hemorrhage or deep punctures.', icon: AlertTriangle, color: 'text-amber-500 bg-amber-50' },
-              { title: 'Seizures', desc: 'Sudden tremors, non-responsiveness, loss of motor control.', icon: Activity, color: 'text-purple-500 bg-purple-50' },
-              { title: 'Heat Stroke', desc: 'Heavy panting, drooling, high body temperature, lethargy.', icon: Clock, color: 'text-orange-500 bg-orange-50' },
-              { title: 'Fractures', desc: 'Broken limbs, inability to stand, or severe structural damage.', icon: ShieldAlert, color: 'text-indigo-500 bg-indigo-50' },
-              { title: 'Snake Bites', desc: 'Venomous bites, swelling, immediate paralysis or weakness.', icon: Shield, color: 'text-teal-500 bg-teal-50' },
+              {
+                title: 'Road Accidents',
+                desc: 'Vehicular trauma, structural fractures, internal damage, or shock from collisions.',
+                severity: 'Critical',
+                urgency: '⚡ Immediate (0m)',
+                symptoms: [
+                  'Visible heavy bleeding or deep lacerations',
+                  'Inability to stand or drag behind limbs',
+                  'Pale or white gums indicating internal shock',
+                  'Continuous crying, whining, or rapid panting'
+                ],
+                firstAid: [
+                  'Keep your pet completely calm and warm',
+                  'Minimize spinal movement; support the pet on a flat board if possible',
+                  'Apply firm, direct pressure to actively bleeding wounds using a clean cloth',
+                  'Contact QuickVet immediately for routing instructions'
+                ],
+                recommendedResponse: '⚡ Within 5 Minutes',
+                themeColor: 'red',
+                icon: (
+                  <svg viewBox="0 0 120 100" className="w-24 h-20 mx-auto" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="120" height="100" rx="16" fill="#FEF2F2" />
+                    <path d="M 60 15 L 90 70 L 30 70 Z" fill="#FEE2E2" stroke="#EF4444" strokeWidth="3" strokeLinejoin="round" />
+                    <path d="M 60 30 L 60 52" stroke="#EF4444" strokeWidth="4.5" strokeLinecap="round" />
+                    <circle cx="60" cy="62" r="3" fill="#EF4444" />
+                    <rect x="75" y="55" width="28" height="18" rx="4" fill="white" stroke="#EF4444" strokeWidth="1.5" />
+                    <circle cx="82" cy="74" r="3.5" fill="#EF4444" />
+                    <circle cx="96" cy="74" r="3.5" fill="#EF4444" />
+                    <path d="M 89 60 L 89 68 M 85 64 L 93 64" stroke="#EF4444" strokeWidth="1.5" />
+                  </svg>
+                )
+              },
+              {
+                title: 'Poisoning',
+                desc: 'Ingestion of household chemicals, human medication, chocolate, or grapes.',
+                severity: 'Critical',
+                urgency: '⚡ Immediate (0m)',
+                symptoms: [
+                  'Foaming at the mouth or excessive drooling',
+                  'Sudden severe vomiting or bloody diarrhea',
+                  'Uncontrolled twitching, seizures, or loss of balance',
+                  'Lethargy or collapse within short timeframe'
+                ],
+                firstAid: [
+                  'Do NOT induce vomiting unless instructed by a qualified veterinarian',
+                  'Identify and preserve the toxic substance or its packaging',
+                  'Rinse the mouth with fresh water if the pet is fully conscious',
+                  'Contact QuickVet immediately with substance details'
+                ],
+                recommendedResponse: '⚡ Within 5 Minutes',
+                themeColor: 'red',
+                icon: (
+                  <svg viewBox="0 0 120 100" className="w-24 h-20 mx-auto" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="120" height="100" rx="16" fill="#F0FDF4" />
+                    <rect x="45" y="25" width="30" height="45" rx="6" fill="white" stroke="#10B981" strokeWidth="3" />
+                    <path d="M 52 25 L 52 18 L 68 18 L 68 25" stroke="#10B981" strokeWidth="3" strokeLinejoin="round" />
+                    <circle cx="60" cy="42" r="5" fill="#10B981" />
+                    <path d="M 55 52 L 65 52 M 57 48 L 63 56 M 63 48 L 57 56" stroke="#10B981" strokeWidth="1.5" strokeLinecap="round" />
+                    <circle cx="85" cy="65" r="3" fill="#F59E0B" />
+                    <circle cx="95" cy="58" r="3.5" fill="#EF4444" />
+                  </svg>
+                )
+              },
+              {
+                title: 'Difficulty Breathing',
+                desc: 'Choking, continuous heavy gasping, blue-tinted gums, or asphyxiation.',
+                severity: 'Critical',
+                urgency: '⚡ Immediate (0m)',
+                symptoms: [
+                  'Gums or tongue turning blue, purple, or pale slate',
+                  'Neck stretched out with mouth wide open gasping',
+                  'Abdomen moving violently in/out to draw breath',
+                  'Choking sounds or rubbing face against ground'
+                ],
+                firstAid: [
+                  'Check the mouth carefully for visible foreign obstructions',
+                  'Avoid wrapping or constricting the chest or throat areas',
+                  'Keep the ambient temperature cool and air circulating',
+                  'Get the pet to an oxygen-equipped clinic immediately'
+                ],
+                recommendedResponse: '⚡ Within 5 Minutes',
+                themeColor: 'red',
+                icon: (
+                  <svg viewBox="0 0 120 100" className="w-24 h-20 mx-auto" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="120" height="100" rx="16" fill="#EFF6FF" />
+                    <path d="M 45 45 Q 30 50 35 68 Q 45 72 52 62 Z" fill="white" stroke="#3B82F6" strokeWidth="2.5" />
+                    <path d="M 75 45 Q 90 50 85 68 Q 75 72 68 62 Z" fill="white" stroke="#3B82F6" strokeWidth="2.5" />
+                    <path d="M 60 20 L 60 45 M 60 45 L 52 50 M 60 45 L 68 50" stroke="#3B82F6" strokeWidth="2.5" strokeLinecap="round" />
+                    <path d="M 20 80 L 40 80 L 45 68 L 50 90 L 55 75 L 60 80 L 100 80" stroke="#EF4444" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )
+              },
+              {
+                title: 'Severe Bleeding',
+                desc: 'Deep puncture wounds, arterial hemorrhages, or continuous bleeding.',
+                severity: 'Critical',
+                urgency: '⚡ Immediate (0m)',
+                symptoms: [
+                  'Blood spurting or flowing continuously from a wound',
+                  'Weakness, dizziness, or collapse from blood loss',
+                  'Direct pressure fails to stop flow after 5 minutes',
+                  'Rapid heart rate and shallow respiratory depth'
+                ],
+                firstAid: [
+                  'Apply clean dressing and press firmly with both hands',
+                  'Elevate the injured limb above heart level if possible',
+                  'Do NOT remove blood-soaked pads; place new ones on top',
+                  'Tie a snug wrap; avoid tourniquets unless arterial spurt'
+                ],
+                recommendedResponse: '⚡ Within 5 Minutes',
+                themeColor: 'red',
+                icon: (
+                  <svg viewBox="0 0 120 100" className="w-24 h-20 mx-auto" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="120" height="100" rx="16" fill="#FEF2F2" />
+                    <rect x="40" y="25" width="40" height="36" rx="6" fill="white" stroke="#EF4444" strokeWidth="3" />
+                    <rect x="52" y="16" width="16" height="9" rx="2" fill="white" stroke="#EF4444" strokeWidth="2" />
+                    <path d="M 60 35 L 60 51 M 52 43 L 68 43" stroke="#EF4444" strokeWidth="3" strokeLinecap="round" />
+                    <path d="M 90 45 C 90 50 86 54 82 54 C 78 54 74 50 74 45 C 74 40 82 30 82 30 C 82 30 90 40 90 45 Z" fill="#EF4444" />
+                  </svg>
+                )
+              },
+              {
+                title: 'Seizures',
+                desc: 'Uncontrolled muscle tremors, temporary loss of consciousness, or foaming.',
+                severity: 'Critical',
+                urgency: '⚡ Immediate (0m)',
+                symptoms: [
+                  'Rigid limbs, paddling movements, or jaw clamping',
+                  'Loss of consciousness, drooling, or urination',
+                  'Seizure lasts longer than 3 minutes continuously',
+                  'Multiple separate seizures occurring within 24 hours'
+                ],
+                firstAid: [
+                  'Clear the surrounding area of hard, sharp objects',
+                  'Do NOT insert your hands or any objects into the mouth',
+                  'Record the exact start, duration, and details of the fit',
+                  'Turn off bright lights and maintain a quiet environment'
+                ],
+                recommendedResponse: '⚡ Within 5 Minutes',
+                themeColor: 'red',
+                icon: (
+                  <svg viewBox="0 0 120 100" className="w-24 h-20 mx-auto" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="120" height="100" rx="16" fill="#FAF5FF" />
+                    <path d="M 20 50 Q 40 50 45 25 Q 50 75 55 45 Q 60 55 65 50 L 100 50" stroke="#8B5CF6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M 45 42 C 40 42 38 35 48 30 C 48 20 62 18 64 28 C 72 25 78 32 72 38 C 76 44 70 50 62 46 C 58 52 48 48 45 42 Z" stroke="#8B5CF6" strokeWidth="1.5" strokeDasharray="3 3" />
+                  </svg>
+                )
+              },
+              {
+                title: 'Heat Stroke',
+                desc: 'High core body temperature, extreme panting, drooling, or disorientation.',
+                severity: 'Urgent',
+                urgency: '⚡ Within 5 Minutes',
+                symptoms: [
+                  'Heavy, rapid, frantic panting and thick saliva',
+                  'Bright red or dark colored tongue and gums',
+                  'Lethargy, weakness, glassy eyes, or staggering',
+                  'Vomiting, diarrhea, or body temperature >104°F'
+                ],
+                firstAid: [
+                  'Move your pet to a cool, shaded, or air-conditioned area immediately',
+                  'Pour cool (NOT ice-cold) water over the body, head, and neck',
+                  'Provide small amounts of fresh, cool drinking water',
+                  'Place a wet towel under the body; do NOT wrap the pet'
+                ],
+                recommendedResponse: '⚡ Within 10 Minutes',
+                themeColor: 'amber',
+                icon: (
+                  <svg viewBox="0 0 120 100" className="w-24 h-20 mx-auto" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="120" height="100" rx="16" fill="#FFFBEB" />
+                    <circle cx="60" cy="40" r="14" fill="#F59E0B" opacity="0.2" />
+                    <circle cx="60" cy="40" r="10" fill="#F59E0B" />
+                    <path d="M 60 20 L 60 26 M 60 54 L 60 60 M 40 40 L 46 40 M 74 40 L 80 40" stroke="#F59E0B" strokeWidth="2.5" strokeLinecap="round" />
+                    <rect x="85" y="25" width="8" height="35" rx="4" fill="white" stroke="#EF4444" strokeWidth="1.5" />
+                    <circle cx="89" cy="55" r="6" fill="#EF4444" />
+                    <line x1="89" y1="32" x2="89" y2="52" stroke="#EF4444" strokeWidth="2.5" strokeLinecap="round" />
+                  </svg>
+                )
+              },
+              {
+                title: 'Fractures',
+                desc: 'Broken bones, limbs bent at unnatural angles, or inability to bear weight.',
+                severity: 'Urgent',
+                urgency: '⚡ Within 10 Minutes',
+                symptoms: [
+                  'Limb held completely off the ground or dangling',
+                  'Swelling, deformity, or bone protruding through skin',
+                  'Extreme pain, vocalization, or aggression when touched',
+                  'Grinding sound or sensation in the affected limb'
+                ],
+                firstAid: [
+                  'Do NOT attempt to reset the bone or apply splints yourself',
+                  'Support the injured limb gently; keep the pet confined',
+                  'Muzzle the pet if they show signs of pain-induced biting',
+                  'Transport on a flat, rigid surface to minimize movement'
+                ],
+                recommendedResponse: '⚡ Within 15 Minutes',
+                themeColor: 'amber',
+                icon: (
+                  <svg viewBox="0 0 120 100" className="w-24 h-20 mx-auto" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="120" height="100" rx="16" fill="#EEF2F6" />
+                    <rect x="35" y="20" width="50" height="60" rx="6" fill="#1E293B" />
+                    <path d="M 52 30 C 48 30 48 24 52 24 C 56 24 56 30 52 30 M 52 70 C 48 70 48 76 52 76 C 56 76 56 70 52 70" stroke="white" strokeWidth="2" />
+                    <path d="M 68 30 C 64 30 64 24 68 24 C 72 24 72 30 68 30 M 68 70 C 64 70 64 76 68 76 C 72 76 72 70 68 70" stroke="white" strokeWidth="2" />
+                    <line x1="52" y1="30" x2="52" y2="70" stroke="white" strokeWidth="5.5" strokeLinecap="round" />
+                    <line x1="68" y1="30" x2="68" y2="70" stroke="white" strokeWidth="5.5" strokeLinecap="round" />
+                    <path d="M 46 48 L 58 52" stroke="#EF4444" strokeWidth="2" strokeLinecap="round" />
+                  </svg>
+                )
+              },
+              {
+                title: 'Snake Bites',
+                desc: 'Venomous bites, sudden severe swelling, puncture marks, or paralysis.',
+                severity: 'Critical',
+                urgency: '⚡ Immediate (0m)',
+                symptoms: [
+                  'Two distinct bleeding puncture marks on the skin',
+                  'Rapid, painful swelling around the bite location',
+                  'Weakness, wobbly gait, breathing trouble, or paralysis',
+                  'Tremors, vomiting, or blood in urine/saliva'
+                ],
+                firstAid: [
+                  'Identify the snake if safe to do so; do NOT try to capture it',
+                  'Keep the bite site located BELOW heart level if possible',
+                  'Do NOT cut the wound, attempt to suck venom, or apply ice',
+                  'Seek veterinary antivenom treatment immediately'
+                ],
+                recommendedResponse: '⚡ Within 5 Minutes',
+                themeColor: 'red',
+                icon: (
+                  <svg viewBox="0 0 120 100" className="w-24 h-20 mx-auto" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="120" height="100" rx="16" fill="#EBF8FF" />
+                    <path d="M 40 70 Q 55 80 70 70 Q 85 60 70 50 Q 55 40 70 30" stroke="#3182CE" strokeWidth="3" strokeLinecap="round" />
+                    <path d="M 68 30 L 76 26" stroke="#3182CE" strokeWidth="3" strokeLinecap="round" />
+                    <circle cx="76" cy="26" r="1.5" fill="#3182CE" />
+                    <rect x="85" y="45" width="10" height="25" rx="2" fill="white" stroke="#EF4444" strokeWidth="1.5" />
+                    <line x1="90" y1="45" x2="90" y2="38" stroke="#EF4444" strokeWidth="2" />
+                  </svg>
+                )
+              }
             ].map((item, idx) => {
-              const Icon = item.icon;
+              const isExpanded = expandedCard === idx;
+              const isCritical = item.severity === 'Critical';
+              
+              const handleKeyDown = (e: React.KeyboardEvent) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setExpandedCard(isExpanded ? null : idx);
+                }
+              };
+
               return (
-                <div key={idx} className="bg-slate-50 p-6 rounded-3xl border border-slate-200/50 text-left space-y-4 hover:border-red-200 transition-colors">
-                  <div className={`w-12 h-12 rounded-2xl ${item.color} flex items-center justify-center`}>
-                    <Icon className="w-5.5 h-5.5" />
+                <motion.div
+                  key={idx}
+                  variants={{
+                    hidden: { opacity: 0, y: 30 },
+                    visible: { opacity: 1, y: 0, transition: { duration: 0.4 } }
+                  }}
+                  tabIndex={0}
+                  role="button"
+                  aria-expanded={isExpanded}
+                  aria-label={`${item.title} - Severity: ${item.severity}. Click to expand first aid instructions.`}
+                  onKeyDown={handleKeyDown}
+                  onClick={() => setExpandedCard(isExpanded ? null : idx)}
+                  className={`snap-center shrink-0 w-[85vw] md:w-auto bg-white/95 backdrop-blur-md rounded-[24px] p-6 border-t border-r border-b border-green-100/40 text-left shadow-[0_8px_30px_rgb(0,0,0,0.015)] hover:shadow-lg transition-all duration-200 cursor-pointer group select-none border-l-4 ${
+                    isCritical 
+                      ? 'border-l-red-500/80 hover:shadow-[0_20px_45px_rgba(239,68,68,0.08)] hover:border-l-red-500' 
+                      : 'border-l-amber-500/80 hover:shadow-[0_20px_45px_rgba(245,158,11,0.08)] hover:border-l-amber-500'
+                  } ${isExpanded ? 'ring-2 ring-[#58B368]/30 md:col-span-2 lg:col-span-2' : 'hover:-translate-y-2'}`}
+                >
+                  <div className="mb-5 overflow-hidden rounded-2xl group-hover:scale-105 transition-transform duration-200">
+                    {item.icon}
                   </div>
-                  <div>
-                    <h4 className="font-display font-black text-sm text-slate-900 mb-1">{item.title}</h4>
-                    <p className="text-[11.5px] text-slate-500 leading-normal">{item.desc}</p>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <h4 className="font-display font-black text-base text-slate-900 leading-tight">
+                        {item.title}
+                      </h4>
+                      <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider animate-pulse ${
+                        isCritical ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-amber-50 text-amber-600 border border-amber-100'
+                      }`}>
+                        {isCritical ? '🔴 Critical' : '🟡 Urgent'}
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-slate-500 leading-relaxed font-medium line-clamp-2">
+                      {item.desc}
+                    </p>
                   </div>
-                </div>
+
+                  <div className="flex items-center justify-between border-t border-slate-100 mt-4 pt-4 text-xs font-semibold text-slate-400">
+                    <span className="text-[10px] font-bold text-slate-500 bg-slate-50 border border-slate-100 py-1 px-2.5 rounded-lg">
+                      {item.urgency}
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-[#2D855A] hover:text-[#58B368] transition-colors font-bold">
+                      {isExpanded ? 'Show Less' : 'Learn More'}
+                      <span className="transform group-hover:translate-x-1.5 transition-transform duration-200">→</span>
+                    </span>
+                  </div>
+
+                  <AnimatePresence>
+                    {isExpanded && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.25, ease: 'easeInOut' }}
+                        className="overflow-hidden border-t border-slate-100 mt-5 pt-5 space-y-4 text-xs text-left"
+                      >
+                        <div className="space-y-1.5">
+                          <span className="block font-black text-slate-800 uppercase tracking-wider text-[10px]">
+                            ⚠️ Critical Symptoms:
+                          </span>
+                          <ul className="space-y-1 pl-4 list-disc text-slate-500 font-medium">
+                            {item.symptoms.map((symp, i) => (
+                              <li key={i}>{symp}</li>
+                            ))}
+                          </ul>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <span className="block font-black text-[#2D855A] uppercase tracking-wider text-[10px]">
+                            🏥 Immediate First Aid:
+                          </span>
+                          <ul className="space-y-1 pl-4 list-disc text-slate-500 font-medium">
+                            {item.firstAid.map((aid, i) => (
+                              <li key={i}>{aid}</li>
+                            ))}
+                          </ul>
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-t border-slate-100 pt-4 mt-2">
+                          <div>
+                            <span className="block text-[9px] uppercase font-bold text-slate-400">Response target</span>
+                            <span className="text-slate-800 font-black text-sm">{item.recommendedResponse}</span>
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              scrollToTop();
+                            }}
+                            className="bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white font-extrabold text-[10px] uppercase py-2.5 px-4 rounded-xl shadow-md transition-colors cursor-pointer w-full sm:w-auto text-center"
+                          >
+                            Request Emergency Help
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
               );
             })}
-          </div>
+          </motion.div>
 
         </div>
       </section>
