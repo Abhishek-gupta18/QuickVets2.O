@@ -1,7 +1,86 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ShieldCheck, HeartPulse, Home, Users, Star, Clock, MapPin, CheckCircle2, ArrowRight, Stethoscope, Phone, BadgeCheck } from 'lucide-react';
 import { VetClinic } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
+
+interface CountUpProps {
+  end: number;
+  duration?: number;
+  suffix?: string;
+  decimals?: number;
+  useFormatter?: boolean;
+}
+
+function CountUp({ end, duration = 1.2, suffix = '', decimals = 0, useFormatter = false }: CountUpProps) {
+  const [count, setCount] = useState(0);
+  const elementRef = useRef<HTMLSpanElement>(null);
+  const [started, setStarted] = useState(false);
+
+  useEffect(() => {
+    if (typeof IntersectionObserver === 'undefined') {
+      setStarted(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setStarted(true);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    const currentRef = elementRef.current;
+    if (currentRef) {
+      observer.observe(currentRef);
+    }
+
+    return () => {
+      if (currentRef) {
+        observer.unobserve(currentRef);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!started) return;
+
+    let startTimestamp: number | null = null;
+    let animationFrameId: number;
+
+    const step = (timestamp: number) => {
+      if (!startTimestamp) startTimestamp = timestamp;
+      const progress = Math.min((timestamp - startTimestamp) / (duration * 1000), 1);
+      
+      // Easing: easeOutQuad
+      const easedProgress = progress * (2 - progress);
+      const currentVal = easedProgress * end;
+      setCount(currentVal);
+
+      if (progress < 1) {
+        animationFrameId = window.requestAnimationFrame(step);
+      } else {
+        setCount(end);
+      }
+    };
+
+    animationFrameId = window.requestAnimationFrame(step);
+    return () => window.cancelAnimationFrame(animationFrameId);
+  }, [started, end, duration]);
+
+  const displayVal = useFormatter 
+    ? Math.floor(count).toLocaleString('en-IN') 
+    : count.toFixed(decimals);
+
+  return (
+    <span ref={elementRef} className="tabular-nums">
+      {displayVal}
+      {suffix}
+    </span>
+  );
+}
+
 
 interface HeroProps {
   clinics: VetClinic[];
@@ -187,7 +266,7 @@ export default function Hero({
       </section>
 
       {/* ===== TRUST STATS ===== */}
-      <section className="py-20 bg-white border-t border-slate-100">
+      <section className="py-20 bg-gradient-to-b from-white to-[#F4FBF3]/35 border-t border-slate-100">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial="hidden"
@@ -196,15 +275,129 @@ export default function Hero({
             variants={{
               visible: { transition: { staggerChildren: 0.1 } }
             }}
-            className="grid grid-cols-2 lg:grid-cols-4 gap-6"
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
           >
             {[
-              { value: '500+', label: 'Verified Clinics', icon: ShieldCheck, color: 'text-green-600 bg-green-50' },
-              { value: '10,000+', label: 'Pets Treated', icon: HeartPulse, color: 'text-rose-500 bg-rose-50' },
-              { value: '4.8★', label: 'Average Rating', icon: Star, color: 'text-amber-500 bg-amber-50' },
-              { value: '24/7', label: 'Emergency Support', icon: Phone, color: 'text-blue-600 bg-blue-50' },
+              {
+                value: 500,
+                suffix: '+',
+                label: 'Verified Clinics',
+                description: 'Fully vetted, license-checked veterinary clinics.',
+                icon: (
+                  <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-14 h-14 transition-transform duration-300 group-hover:scale-110">
+                    <defs>
+                      <linearGradient id="clinic-grad-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#ECFDF5" />
+                        <stop offset="100%" stopColor="#A7F3D0" stopOpacity="0.4" />
+                      </linearGradient>
+                      <linearGradient id="clinic-primary" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#10B981" />
+                        <stop offset="100%" stopColor="#047857" />
+                      </linearGradient>
+                    </defs>
+                    <circle cx="32" cy="32" r="28" fill="url(#clinic-grad-bg)" />
+                    <path d="M18 44V23C18 21.8954 18.8954 21 20 21H40C41.1046 21 42 21.8954 42 23V44" stroke="url(#clinic-primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M28 21V17C28 16.4477 28.4477 16 29 16H31C31.5523 16 32 16.4477 32 17V21" stroke="url(#clinic-primary)" strokeWidth="2" strokeLinecap="round" />
+                    <rect x="22" y="26" width="6" height="6" rx="1.5" fill="#A7F3D0" stroke="url(#clinic-primary)" strokeWidth="2" />
+                    <rect x="32" y="26" width="6" height="6" rx="1.5" fill="#A7F3D0" stroke="url(#clinic-primary)" strokeWidth="2" />
+                    <rect x="22" y="35" width="6" height="6" rx="1.5" fill="#A7F3D0" stroke="url(#clinic-primary)" strokeWidth="2" />
+                    <path d="M28 44V39C28 37.8954 28.8954 37 30 37H34" stroke="url(#clinic-primary)" strokeWidth="2.5" strokeLinecap="round" />
+                    <g transform="translate(12, 10)">
+                      <circle cx="28" cy="28" r="11" fill="url(#clinic-primary)" />
+                      <path d="M25 28L27 30L31 26" stroke="#FFFFFF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </g>
+                  </svg>
+                )
+              },
+              {
+                value: 10000,
+                suffix: '+',
+                useFormatter: true,
+                label: 'Pets Treated',
+                description: 'Loving medical attention provided to animals.',
+                icon: (
+                  <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-14 h-14 transition-transform duration-300 group-hover:scale-110">
+                    <defs>
+                      <linearGradient id="pets-grad-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#FFF1F2" />
+                        <stop offset="100%" stopColor="#FECDD3" stopOpacity="0.4" />
+                      </linearGradient>
+                      <linearGradient id="pets-primary" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#F43F5E" />
+                        <stop offset="100%" stopColor="#BE123C" />
+                      </linearGradient>
+                    </defs>
+                    <circle cx="32" cy="32" r="28" fill="url(#pets-grad-bg)" />
+                    <g transform="translate(0, -2)">
+                      <path d="M32 40C27.5817 40 25.5 35 28.5 31C30.5 28.5 33.5 28.5 35.5 31C38.5 35 36.4183 40 32 40Z" fill="url(#pets-primary)" />
+                      <circle cx="21" cy="26" r="4" fill="url(#pets-primary)" />
+                      <circle cx="28" cy="20" r="4.5" fill="url(#pets-primary)" />
+                      <circle cx="36" cy="20" r="4.5" fill="url(#pets-primary)" />
+                      <circle cx="43" cy="26" r="4" fill="url(#pets-primary)" />
+                    </g>
+                    <path d="M14 44H24L27 36L30 48L33 40L35 44H50" stroke="url(#pets-primary)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )
+              },
+              {
+                value: 4.8,
+                decimals: 1,
+                suffix: '★',
+                label: 'Average Rating',
+                description: 'Consistently rated 5 stars by pet parents.',
+                icon: (
+                  <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-14 h-14 transition-transform duration-300 group-hover:scale-110">
+                    <defs>
+                      <linearGradient id="rating-grad-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#FEF3C7" />
+                        <stop offset="100%" stopColor="#FDE68A" stopOpacity="0.4" />
+                      </linearGradient>
+                      <linearGradient id="rating-primary" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#F59E0B" />
+                        <stop offset="100%" stopColor="#B45309" />
+                      </linearGradient>
+                      <linearGradient id="rating-gold" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#FFFBEB" />
+                        <stop offset="100%" stopColor="#FBBF24" />
+                      </linearGradient>
+                    </defs>
+                    <circle cx="32" cy="32" r="28" fill="url(#rating-grad-bg)" />
+                    <path d="M26 36V49L32 44L38 49V36" fill="#F59E0B" opacity="0.7" />
+                    <path d="M29 36V52L32 48L35 52V36" fill="#D97706" />
+                    <circle cx="32" cy="27" r="15" fill="url(#rating-primary)" stroke="#F59E0B" strokeWidth="1" />
+                    <circle cx="32" cy="27" r="12" fill="url(#rating-gold)" />
+                    <path d="M32 18L34.5 23.5L40.5 24.2L36 28.2L37.3 34.2L32 31L26.7 34.2L28 28.2L23.5 24.2L29.5 23.5L32 18Z" fill="#FFF" />
+                  </svg>
+                )
+              },
+              {
+                value: 24,
+                suffix: '/7',
+                label: 'Emergency Support',
+                description: 'SOS beacon & urgent response team standing by.',
+                icon: (
+                  <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-14 h-14 transition-transform duration-300 group-hover:scale-110">
+                    <defs>
+                      <linearGradient id="emergency-grad-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#DBEAFE" />
+                        <stop offset="100%" stopColor="#BFDBFE" stopOpacity="0.4" />
+                      </linearGradient>
+                      <linearGradient id="emergency-primary" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#2563EB" />
+                        <stop offset="100%" stopColor="#1D4ED8" />
+                      </linearGradient>
+                    </defs>
+                    <circle cx="32" cy="32" r="28" fill="url(#emergency-grad-bg)" />
+                    <rect x="18" y="24" width="28" height="22" rx="4" fill="url(#emergency-primary)" />
+                    <path d="M26 24V20C26 18.8954 26.8954 18 28 18H36C37.1046 18 38 18.8954 38 20V24" stroke="url(#emergency-primary)" strokeWidth="2.5" strokeLinecap="round" />
+                    <rect x="23" y="24" width="4" height="4" rx="1" fill="#93C5FD" />
+                    <rect x="37" y="24" width="4" height="4" rx="1" fill="#93C5FD" />
+                    <path d="M32 29V41M26 35H38" stroke="#FFFFFF" strokeWidth="3.5" strokeLinecap="round" />
+                    <circle cx="32" cy="32" r="23" stroke="#2563EB" strokeWidth="1" strokeDasharray="3 3" opacity="0.4" />
+                  </svg>
+                )
+              }
             ].map((stat) => {
-              const Icon = stat.icon;
               return (
                 <motion.div
                   key={stat.label}
@@ -212,14 +405,25 @@ export default function Hero({
                     hidden: { opacity: 0, y: 20 },
                     visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 100 } }
                   }}
-                  whileHover={{ y: -4, boxShadow: "0 12px 30px rgba(0,0,0,0.04)" }}
-                  className="text-center p-6 rounded-3xl border border-slate-100 bg-white shadow-sm hover:shadow-md transition-all duration-300"
+                  whileHover={{ y: -4, scale: 1.02 }}
+                  transition={{ duration: 0.18, ease: "easeOut" }}
+                  className="group text-left p-8 rounded-[24px] border border-slate-100/80 bg-gradient-to-br from-white to-slate-50/30 shadow-[0_4px_25px_rgba(0,0,0,0.015)] hover:shadow-[0_20px_40px_rgba(0,0,0,0.06)] backdrop-blur-sm transition-all duration-200 flex flex-col justify-between min-h-[220px]"
                 >
-                  <div className={`w-12 h-12 rounded-2xl ${stat.color} flex items-center justify-center mx-auto mb-4`}>
-                    <Icon className="w-6 h-6" />
+                  <div className="mb-6 flex">
+                    {stat.icon}
                   </div>
-                  <span className="block font-display font-black text-3xl text-slate-900">{stat.value}</span>
-                  <span className="text-sm text-slate-500 font-medium">{stat.label}</span>
+                  <div className="space-y-1">
+                    <span className="block font-display font-black text-4xl text-slate-900 tracking-tight">
+                      <CountUp 
+                        end={stat.value} 
+                        suffix={stat.suffix} 
+                        decimals={stat.decimals} 
+                        useFormatter={stat.useFormatter} 
+                      />
+                    </span>
+                    <span className="block text-sm font-bold text-slate-800">{stat.label}</span>
+                    <span className="block text-xs text-slate-400 font-medium leading-relaxed">{stat.description}</span>
+                  </div>
                 </motion.div>
               );
             })}
