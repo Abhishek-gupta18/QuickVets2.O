@@ -80,7 +80,21 @@ const authLimiter = rateLimit({
   }
 });
 
-app.use(helmet());
+app.use(
+  helmet({
+    contentSecurityPolicy: process.env.NODE_ENV === 'production' ? {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "https://accounts.google.com"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        imgSrc: ["'self'", "data:", "blob:", "https://images.unsplash.com", "https://res.cloudinary.com", "https://*.cloudinary.com"],
+        connectSrc: ["'self'", "https://*.onrender.com", "https://accounts.google.com"],
+        frameSrc: ["'self'", "https://accounts.google.com"],
+        fontSrc: ["'self'", "data:", "https://fonts.gstatic.com"],
+      },
+    } : false,
+  })
+);
 app.use(express.json());
 app.use(cookieParser());
 

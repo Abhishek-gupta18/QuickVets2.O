@@ -256,9 +256,9 @@ export default function Hero({
             className="grid grid-cols-1 md:grid-cols-3 gap-8"
           >
             {[
-              { icon: '🏥', title: 'Verified Clinics', desc: 'Every veterinarian on our platform is license-verified, background-checked, and rated by real pet parents.', img: 'photo-1584132967334-10e028bd69f7' },
-              { icon: '🚑', title: '24/7 Emergency Care', desc: 'One tap sends an SOS to nearby emergency-ready clinics. Get help within 15 minutes, any time of day.', img: 'photo-1612531386530-97d3f79d6043' },
-              { icon: '🏠', title: 'Home Visit Booking', desc: 'Skip the clinic queue. Book certified vets for at-home vaccinations, checkups, and routine care.', img: 'photo-1587300003388-59208cc962cb' },
+              { icon: '🏥', title: 'Verified Clinics', desc: 'Every veterinarian on our platform is license-verified, background-checked, and rated by real pet parents.', img: '/verified-clinics.png' },
+              { icon: '🚑', title: '24/7 Emergency Care', desc: 'One tap sends an SOS to nearby emergency-ready clinics. Get help within 15 minutes, any time of day.', img: '/emergency-care.png' },
+              { icon: '🏠', title: 'Home Visit Booking', desc: 'Skip the clinic queue. Book certified vets for at-home vaccinations, checkups, and routine care.', img: '/home-visit.png' },
             ].map((item, idx) => (
               <motion.div
                 key={idx}
@@ -271,7 +271,7 @@ export default function Hero({
               >
                 <div className="h-48 overflow-hidden">
                   <img
-                    src={`https://images.unsplash.com/${item.img}?auto=format&fit=crop&q=80&w=600`}
+                    src={item.img}
                     alt={item.title}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
