@@ -89,6 +89,8 @@ app.use((req, res, next) => {
   const allowedOrigins = [
     'http://localhost:3000',
     'http://localhost:5173',
+    "https://quick-vets2-o.vercel.app",
+    "https://quickvets2-o.onrender.com",
     process.env.FRONTEND_URL, // Set this to the production frontend domain (e.g. Vercel) in the environment configuration
   ].filter(Boolean);
 
