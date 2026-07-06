@@ -161,56 +161,87 @@ export default function VetDashboardLayout(props: VetDashboardLayoutProps) {
     ? { initial: { opacity: 1 }, animate: { opacity: 1 }, exit: { opacity: 1 } }
     : { initial: { opacity: 0, y: 6 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: -6 } };
 
+  const weekday = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+
   return (
     <div className="min-h-[78vh] bg-[#F9FAFB]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        {/* Hero Section with glassmorphism + entrance animation */}
+        {/* Welcome Header & Status Board */}
         <motion.section
-          className="bg-white/70 backdrop-blur-md border border-white/40 rounded-2xl p-6 sm:p-8"
+          className="bg-white border border-gray-100 rounded-[20px] shadow-sm p-6 sm:p-8 hover:shadow-md transition-shadow duration-200"
           variants={fadeInVariants}
           initial="hidden"
           animate="visible"
-          transition={{ duration: 0.2, ease: 'easeOut' }}
+          transition={{ duration: 0.15, ease: 'easeOut' }}
         >
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             {/* Left: Greeting + Clinic Info */}
-            <div className="space-y-1">
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  Accepting Patients
+                </span>
+                <span className="text-xs text-gray-400 font-medium">| {weekday}</span>
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
                 {greeting}, Dr. {props.currentUser.name}
               </h1>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-gray-600 text-sm">{dashboard.clinic.name}</span>
+              <div className="flex items-center gap-2 flex-wrap text-sm text-gray-500 font-medium">
+                <span className="text-gray-700">{dashboard.clinic.name}</span>
+                <span>•</span>
                 <VerificationBadge status={dashboard.verificationStatus} />
               </div>
-              <p className="text-sm text-gray-400">{todayDate}</p>
+            </div>
+
+            {/* Right: Today's Status Panel */}
+            <div className="bg-gray-50/80 border border-gray-100 rounded-xl p-4.5 flex flex-row flex-wrap items-center gap-6 sm:gap-8 text-xs text-gray-600 shadow-sm shrink-0">
+              <div>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Today's Appointments</p>
+                <p className="text-xl font-extrabold text-gray-900 mt-1">{dashboard.metrics.todaysAppointments}</p>
+              </div>
+              <div className="border-l border-gray-200 h-8"></div>
+              <div>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Emergencies</p>
+                <p className="text-xl font-extrabold text-red-600 mt-1">{dashboard.metrics.emergencies}</p>
+              </div>
+              <div className="border-l border-gray-200 h-8"></div>
+              <div>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Consultation Hours</p>
+                <p className="text-sm font-semibold text-gray-800 mt-1.5">{dashboard.clinic.workingHours || '9AM–6PM'}</p>
+              </div>
             </div>
           </div>
 
           {/* Summary Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
             <MetricTile
               icon={CalendarCheck}
               label="Appointments Today"
               value={dashboard.metrics.todaysAppointments}
               hint="Scheduled for today"
+              variant="green"
             />
             <MetricTile
               icon={ShieldAlert}
               label="Emergencies Waiting"
               value={dashboard.metrics.emergencies}
               hint="Require attention"
+              variant="red"
             />
             <MetricTile
               icon={CalendarClock}
               label="Follow-ups Due"
               value={dashboard.metrics.upcomingAppointments}
               hint="Upcoming follow-ups"
+              variant="amber"
             />
             <MetricTile
               icon={MessageSquare}
               label="Unread Messages"
               value={dashboard.metrics.messages}
               hint="New communications"
+              variant="blue"
             />
           </div>
         </motion.section>

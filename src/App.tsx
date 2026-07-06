@@ -28,7 +28,7 @@ const STORAGE_KEY_USER = 'vetfinder_user';
 // ===== API Base URL =====
 // In development: empty string (same origin, Express serves both)
 // In production: set VITE_API_URL to your Render backend URL (e.g. https://quickvet-api.onrender.com)
-const API_BASE = import.meta.env.VITE_API_URL || '';
+const API_BASE = (import.meta as any).env?.VITE_API_URL || '';
 
 
 // ===== Authenticated Fetch Helper =====
