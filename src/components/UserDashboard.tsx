@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
+import { AnimatePresence } from 'motion/react';
 import {
   PawPrint, CalendarDays, ShieldAlert, Plus, Clock,
   MapPin, Star, ArrowRight, Syringe, FileText, Activity,
   BadgeCheck, Stethoscope, ChevronRight, Phone, Home, Heart
 } from 'lucide-react';
 import { User, Pet, Booking, EmergencyRequest, VetClinic } from '../types';
+import PetProfileModal from './PetProfileModal';
 
 interface UserDashboardProps {
   currentUser: User;
@@ -24,6 +26,7 @@ export default function UserDashboard({
   onSelectTab,
 }: UserDashboardProps) {
   const [showAddPetForm, setShowAddPetForm] = useState(false);
+  const [activeProfilePet, setActiveProfilePet] = useState<Pet | null>(null);
   const [petName, setPetName] = useState('');
   const [petType, setPetType] = useState('Dog');
   const [breed, setBreed] = useState('');
@@ -201,7 +204,10 @@ export default function UserDashboard({
                       </div>
                     )}
 
-                    <button className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-black rounded-xl transition-colors">
+                    <button 
+                      onClick={() => setActiveProfilePet(pet)}
+                      className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-black rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-slate-950"
+                    >
                       View Full Profile
                     </button>
                   </div>
@@ -492,6 +498,17 @@ export default function UserDashboard({
           </div>
         </div>
       )}
+
+      <AnimatePresence>
+        {activeProfilePet && (
+          <PetProfileModal
+            pet={activeProfilePet}
+            currentUser={currentUser}
+            onClose={() => setActiveProfilePet(null)}
+            onSelectTab={onSelectTab}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
