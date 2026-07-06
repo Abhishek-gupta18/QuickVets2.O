@@ -19,7 +19,7 @@ import AuthModal from './components/AuthModal';
 import Footer from './components/Footer';
 import VaccinationGuide from './components/VaccinationGuide';
 import { VetClinic, Booking, EmergencyRequest, User, ClinicReview } from './types';
-import { calculateHaversineDistance } from './data';
+import { calculateHaversineDistance, INITIAL_CLINICS } from './data';
 import { motion, AnimatePresence } from 'motion/react';
 
 // ===== Auth Storage Keys =====
@@ -77,7 +77,7 @@ export default function App() {
   const [userCityName, setUserCityName] = useState<string>('your area');
 
   // Database lists fetched from Express
-  const [clinics, setClinics] = useState<VetClinic[]>([]);
+  const [clinics, setClinics] = useState<VetClinic[]>(INITIAL_CLINICS);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [emergencies, setEmergencies] = useState<EmergencyRequest[]>([]);
 
@@ -244,9 +244,22 @@ export default function App() {
     try {
       // Clinics are public
       const cRes = await fetch(`${API_BASE}/api/clinics`);
-      if (!cRes.ok) return;
-      const cData = await safeJson(cRes);
-      if (cData && Array.isArray(cData)) setClinics(cData);
+      let fetchedClinics: VetClinic[] = [];
+      if (cRes.ok) {
+        const cData = await safeJson(cRes);
+        if (cData && Array.isArray(cData)) {
+          fetchedClinics = cData;
+        }
+      }
+      
+      // Merge with INITIAL_CLINICS to ensure we always have the frontend curated clinics
+      const merged = [...fetchedClinics];
+      INITIAL_CLINICS.forEach(initC => {
+        if (!merged.some(c => c.id === initC.id)) {
+          merged.push(initC);
+        }
+      });
+      setClinics(merged);
 
       // Bookings & Emergencies require auth
       if (currentUser) {

@@ -102,7 +102,7 @@ export default function Hero({
   onNavigateToVetRegister,
 }: HeroProps) {
   const verifiedClinics = clinics.filter(c => c.verificationStatus === 'approved');
-  const featuredVets = clinics.slice(0, 3);
+  const featuredVets = clinics.slice(0, 6);
 
   const slideshowImages = [
     "https://images.unsplash.com/photo-1628009368231-7bb7cfcb0def?auto=format&fit=crop&q=80&w=1600",

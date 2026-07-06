@@ -3,7 +3,8 @@ import {
   Star, Search, Filter, SlidersHorizontal, CheckCircle2, 
   ThumbsUp, Calendar, MapPin, Award, ArrowRight, Stethoscope,
   ShieldCheck, Heart, Sparkles, RefreshCw, AlertCircle, Compass,
-  FolderHeart, HeartPulse, Clock, Sparkle, ChevronLeft, ChevronRight, X
+  FolderHeart, HeartPulse, Clock, Sparkle, ChevronLeft, ChevronRight, X,
+  Share2, MessageSquare, Plus, Phone, TrendingUp, UserCheck
 } from 'lucide-react';
 import { VetClinic, ClinicReview, User } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
@@ -144,6 +145,7 @@ export default function ReviewsView({
   const [activeSlide, setActiveSlide] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [featuredIndex, setFeaturedIndex] = useState(0);
 
   // Swipe gesture trackers
   const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -290,6 +292,17 @@ export default function ReviewsView({
     }, 5500);
     return () => clearInterval(interval);
   }, [isHovered]);
+
+  // Featured Clinics Carousel Autoplay
+  useEffect(() => {
+    const featuredClinicsCount = clinics.filter(c => c.verificationStatus === 'approved').length;
+    const limit = Math.min(featuredClinicsCount, 8);
+    if (limit === 0) return;
+    const interval = setInterval(() => {
+      setFeaturedIndex(prev => (prev + 1) % limit);
+    }, 4500);
+    return () => clearInterval(interval);
+  }, [clinics]);
 
   // Keyboard navigation handler
   useEffect(() => {
@@ -439,11 +452,11 @@ export default function ReviewsView({
     fetchReviews(false);
   };
 
-  // Get exactly 4 top rated featured clinics
+  // Get exactly 8 top rated featured clinics
   const featuredClinics = clinics
     .filter(c => c.verificationStatus === 'approved')
     .sort((a, b) => b.rating - a.rating)
-    .slice(0, 4);
+    .slice(0, 8);
 
   const handleCollectionSelect = (tag: string) => {
     if (tag === 'Emergency') {
@@ -507,8 +520,8 @@ export default function ReviewsView({
   return (
     <div className="bg-[#F8FDF9] min-h-screen pb-20 text-left font-sans transition-colors duration-300">
       
-      {/* 1. PREMIUM HERO SECTION */}
-      <section className="relative text-white py-20 px-4 md:px-8 rounded-b-[56px] shadow-xl overflow-hidden min-h-[500px] flex items-center">
+      {/* 1. PREMIUM UNIFIED HERO & FILTER CARD */}
+      <section className="relative text-white py-16 px-4 md:px-8 rounded-b-[56px] shadow-xl overflow-hidden min-h-[480px] flex items-center">
         {/* Background Dog Image with overlay */}
         <div 
           className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-transform duration-[4000ms] hover:scale-105"
@@ -516,8 +529,8 @@ export default function ReviewsView({
         />
         <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-950/75 to-transparent" />
         
-        <div className="max-w-7xl mx-auto w-full flex flex-col lg:flex-row items-center justify-between gap-12 relative z-10">
-          <div className="max-w-2xl space-y-7">
+        <div className="max-w-7xl mx-auto w-full relative z-10 space-y-8">
+          <div className="max-w-3xl space-y-4 text-left">
             <div className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-green-300 text-xs font-semibold tracking-wide shadow-sm">
               <ShieldCheck className="w-4 h-4 text-emerald-400" />
               <span>Verified Clinical Experiences Only</span>
@@ -526,319 +539,351 @@ export default function ReviewsView({
             <h1 className="font-display font-black text-4xl sm:text-5xl lg:text-6xl tracking-tight leading-tight text-white">
               Pet Parents Community
             </h1>
+          </div>
 
-            <p className="text-green-100/90 text-sm sm:text-base font-normal leading-relaxed max-w-xl">
-              Discover authentic experiences, recovery journeys, veterinarian recommendations, and trusted advice shared by verified pet parents across India.
-            </p>
+          {/* Unified Glassmorphic Filter Card */}
+          <div className="backdrop-blur-xl bg-slate-900/60 border border-white/10 p-6 md:p-8 rounded-[32px] shadow-2xl space-y-6 max-w-5xl text-left">
+            <div>
+              <h2 className="font-display font-black text-lg sm:text-xl text-white">
+                Browse Pet Experiences
+              </h2>
+              <p className="text-green-100/70 text-xs sm:text-sm font-normal mt-1 leading-relaxed">
+                Discover real stories, clinic reviews, vaccination journeys, emergency recoveries, and advice from verified pet parents.
+              </p>
+            </div>
 
-            {/* Glassmorphic Search Bar */}
-            <div className="backdrop-blur-lg bg-white/15 border border-white/20 p-2.5 rounded-3xl shadow-2xl flex flex-col md:flex-row gap-2.5 max-w-2xl transition-all duration-200 hover:border-white/30">
-              <div className="flex-1 relative flex items-center">
-                <Search className="w-4 h-4 text-green-200 absolute left-3.5" />
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+              {/* Search input */}
+              <div className="md:col-span-6 relative flex items-center">
+                <Search className="w-4 h-4 text-green-200/60 absolute left-4" />
                 <input
                   type="text"
                   placeholder="Clinics, vets, treatments, or pet types..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-3 py-2 text-sm text-white bg-transparent border-0 outline-none placeholder:text-green-200/60"
+                  className="w-full pl-11 pr-4 py-3 text-xs sm:text-sm text-white bg-white/5 border border-white/10 rounded-2xl outline-none placeholder:text-green-200/40 focus:border-green-400 focus:bg-white/10 transition-all font-medium"
                 />
               </div>
-              <div className="w-px bg-white/20 hidden md:block" />
-              <select
-                value={selectedCity}
-                onChange={(e) => setSelectedCity(e.target.value)}
-                className="bg-transparent text-xs text-green-100 outline-none px-2 py-2 cursor-pointer border-0 font-bold"
-              >
-                <option value="All" className="text-slate-800">All Locations</option>
-                <option value="Bengaluru" className="text-slate-800">Bengaluru</option>
-                <option value="Mumbai" className="text-slate-800">Mumbai</option>
-                <option value="Hyderabad" className="text-slate-800">Hyderabad</option>
-                <option value="Kochi" className="text-slate-800">Kochi</option>
-              </select>
-              <button 
-                onClick={() => fetchReviews(true)}
-                className="px-6 py-3 bg-[#58B368] hover:bg-[#4ea25d] text-white text-xs font-black rounded-2xl transition-all shadow-md shadow-green-900/30 hover:scale-[1.02] active:scale-[0.98]"
-              >
-                Search
-              </button>
+
+              {/* Location Select */}
+              <div className="md:col-span-3">
+                <select
+                  value={selectedCity}
+                  onChange={(e) => setSelectedCity(e.target.value)}
+                  className="w-full px-4 py-3 text-xs sm:text-sm text-green-100 bg-white/5 border border-white/10 rounded-2xl outline-none cursor-pointer focus:border-green-400 focus:bg-white/10 transition-all font-bold"
+                >
+                  <option value="All" className="text-slate-900">All Locations</option>
+                  <option value="Bengaluru" className="text-slate-900">Bengaluru</option>
+                  <option value="Mumbai" className="text-slate-900">Mumbai</option>
+                  <option value="Hyderabad" className="text-slate-900">Hyderabad</option>
+                  <option value="Kochi" className="text-slate-900">Kochi</option>
+                </select>
+              </div>
+
+              {/* Sort Dropdown */}
+              <div className="md:col-span-3">
+                <select
+                  value={selectedSort}
+                  onChange={(e) => setSelectedSort(e.target.value)}
+                  className="w-full px-4 py-3 text-xs sm:text-sm text-green-100 bg-white/5 border border-white/10 rounded-2xl outline-none cursor-pointer focus:border-green-400 focus:bg-white/10 transition-all font-bold"
+                >
+                  <option value="recent" className="text-slate-900">Sort by: Recent</option>
+                  <option value="highest" className="text-slate-900">Sort by: Highest Rating</option>
+                  <option value="helpful" className="text-slate-900">Sort by: Most Helpful</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Category Filter Chips & Total Counter */}
+            <div className="pt-2 flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-t border-white/5">
+              <div className="flex flex-wrap gap-2">
+                {CATEGORIES.map((cat) => {
+                  const IconComp = cat.icon;
+                  const isSelected = categoryFilter === cat.id;
+                  return (
+                    <button
+                      key={cat.id}
+                      onClick={() => setCategoryFilter(cat.id)}
+                      className={`px-3.5 py-2 rounded-xl text-[11px] font-black transition-all flex items-center gap-1.5 cursor-pointer border hover:-translate-y-0.5 duration-200 active:scale-95 ${
+                        isSelected
+                          ? 'bg-[#58B368] text-white border-[#58B368] shadow-md shadow-green-900/30'
+                          : 'bg-white/5 text-green-200 border-white/10 hover:bg-white/10 hover:text-white'
+                      }`}
+                    >
+                      <IconComp className="w-3 h-3" />
+                      <span>{cat.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="flex-shrink-0 text-[11px] font-extrabold text-green-300 uppercase tracking-widest bg-white/5 border border-white/10 px-3 py-1.5 rounded-xl">
+                🟢 {sortedReviews.length} experiences found
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      {/* 2. STATISTICS STRIP */}
+      <section className="bg-white border-y border-slate-100/80 py-4.5 px-4">
+        <div className="max-w-7xl mx-auto flex flex-wrap justify-around items-center gap-6 text-center text-xs md:text-sm font-display">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">⭐</span>
+            <div>
+              <span className="block font-black text-slate-800 text-sm md:text-base leading-none">12,500+</span>
+              <span className="text-[10px] text-slate-400 font-semibold mt-0.5 block">Verified Experiences</span>
             </div>
           </div>
-
-          {/* Gracefully Floating Trust Cards on the Right */}
-          <div className="w-full lg:w-[380px] flex flex-col gap-5 relative">
-            {/* Glass trust card 1 */}
-            <div className="backdrop-blur-md bg-white/85 border border-white/40 p-4 rounded-2xl shadow-lg flex items-center gap-3 text-xs text-slate-800 font-extrabold transition-all hover:scale-105 duration-200 max-w-[280px] self-start">
-              <span className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-sm shadow-inner">⭐</span>
-              <div>
-                <span className="block text-xs text-slate-800 font-black leading-tight">4.9/5 Rating</span>
-                <span className="text-[9.5px] text-slate-500 block font-normal mt-0.5">Platform Score</span>
-              </div>
+          <div className="w-px h-6 bg-slate-100 hidden sm:block" />
+          <div className="flex items-center gap-2">
+            <span className="text-lg">🐶</span>
+            <div>
+              <span className="block font-black text-slate-800 text-sm md:text-base leading-none">8,300+</span>
+              <span className="text-[10px] text-slate-400 font-semibold mt-0.5 block">Dogs Care Logs</span>
             </div>
-
-            {/* Glass trust card 2 */}
-            <div className="backdrop-blur-md bg-white/85 border border-white/40 p-4 rounded-2xl shadow-lg flex items-center gap-3 text-xs text-slate-800 font-extrabold transition-all hover:scale-105 duration-200 max-w-[280px] self-center">
-              <span className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-sm shadow-inner">⚡</span>
-              <div>
-                <span className="block text-xs text-slate-800 font-black leading-tight">99.2% Dispatch</span>
-                <span className="text-[9.5px] text-slate-500 block font-normal mt-0.5">Emergency Success</span>
-              </div>
+          </div>
+          <div className="w-px h-6 bg-slate-100 hidden sm:block" />
+          <div className="flex items-center gap-2">
+            <span className="text-lg">🐱</span>
+            <div>
+              <span className="block font-black text-slate-800 text-sm md:text-base leading-none">2,900+</span>
+              <span className="text-[10px] text-slate-400 font-semibold mt-0.5 block">Cats Treated</span>
             </div>
-
-            {/* Glass trust card 3 */}
-            <div className="backdrop-blur-md bg-white/85 border border-white/40 p-4 rounded-2xl shadow-lg flex items-center gap-3 text-xs text-slate-800 font-extrabold transition-all hover:scale-105 duration-200 max-w-[280px] self-end">
-              <span className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-sm shadow-inner">🏥</span>
-              <div>
-                <span className="block text-xs text-slate-800 font-black leading-tight">50+ Clinics</span>
-                <span className="text-[9.5px] text-slate-500 block font-normal mt-0.5">Verified Partners</span>
-              </div>
+          </div>
+          <div className="w-px h-6 bg-slate-100 hidden sm:block" />
+          <div className="flex items-center gap-2">
+            <span className="text-lg">🏥</span>
+            <div>
+              <span className="block font-black text-slate-800 text-sm md:text-base leading-none">540+</span>
+              <span className="text-[10px] text-slate-400 font-semibold mt-0.5 block">Verified Clinics</span>
+            </div>
+          </div>
+          <div className="w-px h-6 bg-slate-100 hidden sm:block" />
+          <div className="flex items-center gap-2">
+            <span className="text-lg">❤️</span>
+            <div>
+              <span className="block font-black text-[#2D855A] text-sm md:text-base leading-none">98%</span>
+              <span className="text-[10px] text-slate-400 font-semibold mt-0.5 block">Positive Reviews</span>
             </div>
           </div>
         </div>
       </section>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16 space-y-20">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 space-y-16">
 
-        {/* 2. REVOLVING SUCCESS STORIES PEEK CAROUSEL (Netflix/Apple TV Style) */}
-        <section className="space-y-6">
-          <div className="flex justify-between items-end">
-            <div>
-              <span className="text-[10px] uppercase font-black text-[#58B368] bg-green-50 px-2 py-0.5 rounded border border-green-100">Success Journeys</span>
-              <h2 className="font-display font-black text-2xl sm:text-3xl text-slate-900 mt-1">Featured Recovery Stories</h2>
-            </div>
-            
-            {/* Nav Arrows Removed */}
+        {/* 3. AUTO-SCROLLING FEATURED CLINICS CAROUSEL */}
+        <section className="space-y-6 text-left">
+          <div>
+            <span className="text-[10px] uppercase font-black text-[#58B368] bg-[#E5F6EC] px-2 py-0.5 rounded border border-[#C6ECD2]">
+              Top Rated Care Centers
+            </span>
+            <h2 className="font-display font-black text-2xl sm:text-3xl text-slate-900 mt-1">
+              Featured Veterinary Clinics
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Top clinics offering emergency support, verified by nearby pet parents.
+            </p>
           </div>
 
-          {/* Peek Carousel Wrapper */}
-          <div 
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-            className="relative overflow-hidden w-full flex items-center justify-center min-h-[480px] md:min-h-[420px] select-none"
-          >
-            <div className="w-full relative h-[460px] md:h-[400px] flex items-center justify-center">
-              {FEATURED_STORIES.map((story, idx) => {
-                const style = getSlideStyle(idx);
-                const isCenter = idx === activeSlide;
-
+          <div className="relative overflow-hidden w-full p-1">
+            <div 
+              className="flex transition-transform duration-500 ease-out gap-6"
+              style={{ transform: `translateX(-${featuredIndex * (isMobile ? 88 : 100)}%)` }}
+            >
+              {featuredClinics.map((clinic) => {
+                const mockDistance = ((clinic.name.length * 7) % 4) + 1.2;
                 return (
-                  <div
-                    key={story.id}
-                    onClick={() => !isCenter && setActiveSlide(idx)}
-                    style={{
-                      transform: style.transform,
-                      opacity: style.opacity,
-                      zIndex: style.zIndex,
-                      filter: style.filter,
-                      pointerEvents: style.pointerEvents,
-                      transition: 'all 950ms cubic-bezier(0.16, 1, 0.3, 1)'
-                    }}
-                    className="absolute w-[78%] md:w-[70%] bg-white border border-slate-100 rounded-[32px] overflow-hidden shadow-[0_12px_36px_-12px_rgba(0,0,0,0.12)] flex flex-col md:flex-row h-full max-h-[380px]"
+                  <div 
+                    key={clinic.id} 
+                    className="flex-shrink-0 w-[85vw] md:w-[calc(25%-18px)] bg-white border border-slate-100 rounded-[24px] overflow-hidden shadow-[0_4px_20px_-4px_rgba(0,0,0,0.02)] hover:shadow-md hover:border-[#58B368]/20 transition-all duration-300 flex flex-col justify-between group hover:-translate-y-1"
                   >
-                    {/* Cover image */}
-                    <div className="w-full md:w-[42%] relative h-40 md:h-full overflow-hidden flex-shrink-0">
-                      <img 
-                        src={story.coverImage} 
-                        alt={story.title} 
-                        className="absolute inset-0 w-full h-full object-cover"
-                        draggable={false}
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-transparent to-transparent pointer-events-none" />
-                      <div className="absolute top-4 left-4 bg-emerald-500/90 backdrop-blur-sm text-white px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider flex items-center gap-1 shadow-sm">
-                        <Sparkle className="w-3 h-3 fill-white" />
-                        <span>{story.visitType}</span>
-                      </div>
-                    </div>
-                    
-                    {/* Story details */}
-                    <div className="flex-1 p-5 md:p-8 flex flex-col justify-between overflow-y-auto space-y-4">
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[8.5px] uppercase font-black tracking-widest text-[#58B368] bg-green-50 px-2 py-0.5 rounded border border-green-100">Recovery log</span>
-                          <span className="text-[9px] text-slate-400 font-bold">• Case Audit Verified</span>
-                        </div>
+                    <div>
+                      <div className="relative h-44 overflow-hidden">
+                        <img 
+                          src={clinic.imageUrl || 'https://images.unsplash.com/photo-1584132967334-10e028bd69f7?auto=format&fit=crop&q=80&w=400'} 
+                          alt={clinic.name} 
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+                        />
                         
-                        <h3 className="font-display font-black text-lg md:text-xl text-slate-900 leading-snug">
-                          {story.title}
-                        </h3>
+                        {clinic.hasEmergency && (
+                          <span className="absolute top-3 left-3 bg-red-500/90 backdrop-blur-sm border border-red-400/20 text-white rounded-full px-2.5 py-0.5 text-[8.5px] font-black uppercase tracking-wider">
+                            🚨 Emergency Ready
+                          </span>
+                        )}
 
-                        <p className="text-slate-600 text-xs leading-relaxed italic line-clamp-3">
-                          "{story.storyText}"
-                        </p>
+                        <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm border border-[#58B368]/20 px-2.5 py-0.5 rounded-full text-xs font-black text-slate-800 flex items-center gap-0.5 shadow-sm">
+                          <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                          <span>{Number(clinic.rating).toFixed(1)}</span>
+                        </div>
                       </div>
 
-                      {/* Recovery Timeline */}
-                      <div className="space-y-1.5">
-                        <div className="flex flex-wrap items-center gap-y-1.5 text-[9px]">
-                          {story.timeline.slice(0, 4).map((step, sIdx) => (
-                            <React.Fragment key={sIdx}>
-                              <div className="flex items-center gap-1">
-                                <span className="w-3.5 h-3.5 rounded-full bg-[#58B368]/90 text-white flex items-center justify-center font-bold text-[7px]">{sIdx + 1}</span>
-                                <div>
-                                  <span className="font-black text-slate-800 leading-none">{step.label}</span>
-                                  <span className="text-slate-400 block text-[7px] max-w-[80px] truncate leading-none mt-0.5">{step.desc}</span>
-                                </div>
-                              </div>
-                              {sIdx < 3 && (
-                                <span className="text-slate-200 mx-1">→</span>
-                              )}
-                            </React.Fragment>
+                      <div className="p-5 space-y-2">
+                        <h4 
+                          className="font-display font-bold text-slate-800 text-sm leading-tight hover:text-[#58B368] cursor-pointer truncate" 
+                          onClick={() => onSelectClinic(clinic)}
+                        >
+                          {clinic.name}
+                        </h4>
+                        <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-400 font-semibold">
+                          <span>📍 {clinic.area}</span>
+                          <span>•</span>
+                          <span>{mockDistance.toFixed(1)} km away</span>
+                        </div>
+                        <span className="text-[10px] text-slate-400 block">
+                          ⭐ {clinic.reviewsCount} Patient Audits
+                        </span>
+                        
+                        <div className="flex flex-wrap gap-1 pt-1.5">
+                          {clinic.specialists.slice(0, 2).map(spec => (
+                            <span key={spec} className="px-1.5 py-0.5 bg-slate-50 text-slate-500 rounded text-[9px] font-extrabold uppercase tracking-wide">
+                              {spec}
+                            </span>
                           ))}
                         </div>
                       </div>
+                    </div>
 
-                      {/* Vet & Patient Profile Meta */}
-                      <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                        <div className="flex items-center gap-2">
-                          <img src={story.petAvatar} alt={story.petName} className="w-7 h-7 rounded-full object-cover border border-slate-100 shadow-sm" />
-                          <div className="text-[10px] leading-tight">
-                            <span className="font-black text-slate-800 block">{story.petName}</span>
-                            <span className="text-slate-400 block text-[8px]">{story.petBreed} • Parent: {story.ownerName}</span>
-                          </div>
-                        </div>
-                        
-                        <div className="text-[10px] sm:text-right leading-tight">
-                          <span className="font-black text-[#58B368] block">{story.clinicName}</span>
-                          <span className="text-slate-500 text-[9px]">Care physician: <b>{story.vetName}</b></span>
-                        </div>
-                      </div>
+                    <div className="p-5 pt-0">
+                      <button 
+                        onClick={() => onSelectClinic(clinic)}
+                        className="w-full py-2.5 bg-slate-50 hover:bg-[#58B368] hover:text-white border border-slate-100 hover:border-[#58B368] text-slate-700 text-xs font-bold rounded-xl transition-all duration-200 cursor-pointer shadow-sm hover:shadow-[0_8px_20px_rgba(88,179,104,0.25)]"
+                      >
+                        Quick Visit
+                      </button>
                     </div>
                   </div>
                 );
               })}
             </div>
-          </div>
-
-          {/* Segment Progress Bars (Apple TV Style) */}
-          <div className="flex justify-center items-center gap-2 mt-2">
-            {FEATURED_STORIES.map((_, idx) => (
-              <button
-                key={idx}
-                onClick={() => setActiveSlide(idx)}
-                className="group relative h-1 w-16 bg-slate-200 rounded-full overflow-hidden transition-all duration-300"
-              >
-                <div 
-                  className={`absolute inset-0 bg-[#58B368] transition-all duration-500 ${
-                    idx === activeSlide ? 'w-full' : 'w-0'
+            
+            {/* Carousel Indicators */}
+            <div className="flex justify-center gap-1.5 mt-5">
+              {Array.from({ length: Math.ceil(featuredClinics.length / (isMobile ? 1 : 4)) }).map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setFeaturedIndex(idx)}
+                  className={`h-1.5 rounded-full transition-all duration-300 ${
+                    idx === featuredIndex ? 'w-6 bg-[#58B368]' : 'w-1.5 bg-slate-200'
                   }`}
                 />
-              </button>
-            ))}
+              ))}
+            </div>
           </div>
         </section>
 
-        {/* 3. BROWSE BY CATEGORIES */}
-        <section className="space-y-4">
-          <div className="flex justify-between items-end">
-            <h3 className="font-display font-black text-lg text-slate-900">Browse by Categories</h3>
-            <span className="text-xs text-slate-400 font-semibold">Select a tag to filter pet experiences</span>
-          </div>
-          <div className="flex flex-wrap gap-2.5">
-            {CATEGORIES.map((cat) => {
-              const IconComp = cat.icon;
-              const isSelected = categoryFilter === cat.id;
-              return (
-                <button
-                  key={cat.id}
-                  onClick={() => setCategoryFilter(cat.id)}
-                  className={`px-4.5 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer border ${
-                    isSelected
-                      ? 'bg-[#58B368] text-white border-[#58B368] shadow-md shadow-green-200'
-                      : 'backdrop-blur-sm bg-white/70 text-[#2F855A] border-emerald-500/20 hover:bg-[#58B368] hover:text-white shadow-sm'
-                  }`}
-                >
-                  <IconComp className={`w-3.5 h-3.5 ${isSelected ? 'text-white' : 'text-[#58B368]'}`} />
-                  <span>{cat.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* 4. FEATURED CLINICS */}
-        <section className="space-y-6">
+        {/* 4. CURATED COLLECTIONS SECTION */}
+        <section className="space-y-6 text-left">
           <div>
-            <span className="text-[10px] uppercase font-black text-[#58B368] bg-green-50 px-2 py-0.5 rounded border border-green-100">Top Rated Care</span>
-            <h3 className="font-display font-black text-2xl text-slate-900 mt-1">Highly Rated Featured Clinics</h3>
-            <p className="text-xs text-slate-400 mt-0.5">Voted high-trust standards by the local community.</p>
+            <span className="text-[10px] uppercase font-black text-[#58B368] bg-[#E5F6EC] px-2 py-0.5 rounded border border-[#C6ECD2]">
+              Expert Handpicked Guides
+            </span>
+            <h3 className="font-display font-black text-2xl text-slate-900 mt-1">Curated Care Collections</h3>
+            <p className="text-xs text-slate-400 mt-0.5">Explore tailored clinical maps and advice verified by QuickVet specialist partners.</p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {featuredClinics.map((clinic) => (
-              <div 
-                key={clinic.id} 
-                className="bg-white border border-slate-100 rounded-3xl overflow-hidden shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] hover:shadow-lg hover:border-[#58B368]/20 transition-all duration-300 flex flex-col justify-between group"
+          <div className="flex overflow-x-auto snap-x snap-mandatory scrollbar-none gap-6 pb-4">
+            {[
+              {
+                id: 'coll-emergency',
+                title: 'Top Emergency Clinics',
+                desc: '24/7 critical trauma centers with dedicated blood banks & ICU facilities.',
+                count: '6 locations',
+                image: 'https://images.unsplash.com/photo-1584132967334-10e028bd69f7?auto=format&fit=crop&q=80&w=500',
+                tag: 'Emergency'
+              },
+              {
+                id: 'coll-vaccines',
+                title: 'Best Vaccination Centers',
+                desc: 'Audited clinics providing standard immunizations under cold chain storage.',
+                count: '8 locations',
+                image: 'https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&q=80&w=500',
+                tag: 'Vaccination'
+              },
+              {
+                id: 'coll-parks',
+                title: 'Pet Friendly Parks',
+                desc: 'Leash-free dog parks, play areas, and pet socialization hubs nearby.',
+                count: '15 locations',
+                image: 'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&q=80&w=500',
+                tag: 'Outdoor'
+              },
+              {
+                id: 'coll-puppy',
+                title: 'Puppy Starter Guide',
+                desc: 'Essential initial care checklist, nutrition tips, and vaccine schedule for new owners.',
+                count: '12 guides',
+                image: 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&q=80&w=500',
+                tag: 'Puppy'
+              },
+              {
+                id: 'coll-cats',
+                title: 'Cat Wellness Clinics',
+                desc: 'Feline-friendly certified clinics with separate waiting rooms and quiet zones.',
+                count: '8 locations',
+                image: 'https://images.unsplash.com/photo-1533738363-b7f9aef128ce?auto=format&fit=crop&q=80&w=500',
+                tag: 'Feline Care'
+              },
+              {
+                id: 'coll-exotics',
+                title: 'Exotic Pet Specialists',
+                desc: 'Experienced veterinarians specialized in birds, rabbits, reptiles, and small mammals.',
+                count: '4 locations',
+                image: 'https://images.unsplash.com/photo-1607990283143-e81e7a2c93ab?auto=format&fit=crop&q=80&w=500',
+                tag: 'Exotics'
+              }
+            ].map((coll) => (
+              <div
+                key={coll.id}
+                onClick={() => handleCollectionSelect(coll.tag)}
+                className="relative flex-shrink-0 w-[78vw] md:w-[320px] h-64 rounded-3xl overflow-hidden shadow-md group cursor-pointer text-left snap-center hover:-translate-y-1 transition-all duration-300"
               >
-                <div>
-                  <div className="relative h-44 overflow-hidden">
-                    <img 
-                      src={clinic.imageUrl} 
-                      alt={clinic.name} 
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
-                    />
-                    
-                    {clinic.hasEmergency && (
-                      <span className="absolute top-3 left-3 bg-red-500/90 backdrop-blur-sm border border-red-400/20 text-white rounded-full px-2.5 py-0.5 text-[8.5px] font-black uppercase tracking-wider">
-                        🚨 Emergency Ready
-                      </span>
-                    )}
-
-                    {/* Rating Pill */}
-                    <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm border border-[#58B368]/20 px-2.5 py-0.5 rounded-full text-xs font-black text-slate-800 flex items-center gap-0.5 shadow-sm">
-                      <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                      <span>{Number(clinic.rating).toFixed(1)}</span>
-                    </div>
+                <img 
+                  src={coll.image} 
+                  alt={coll.title} 
+                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out" 
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/95 via-slate-900/40 to-slate-950/10" />
+                
+                <div className="absolute inset-0 p-6 flex flex-col justify-between text-white z-10">
+                  <div className="flex justify-between items-start">
+                    <span className="bg-[#58B368] text-white px-2.5 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider">
+                      {coll.tag}
+                    </span>
+                    <span className="text-[10px] text-[#58B368] bg-white px-2 py-0.5 rounded-md font-black">
+                      {coll.count}
+                    </span>
                   </div>
 
-                  <div className="p-5 space-y-2">
-                    <h4 
-                      className="font-display font-bold text-slate-800 text-sm leading-tight hover:text-[#58B368] cursor-pointer" 
-                      onClick={() => onSelectClinic(clinic)}
-                    >
-                      {clinic.name}
+                  <div className="space-y-1.5">
+                    <h4 className="text-base font-black tracking-tight leading-tight">
+                      {coll.title}
                     </h4>
-                    <div className="flex items-center gap-1.5 text-xs text-slate-400 font-semibold">
-                      <span>📍 {clinic.area}, {clinic.city}</span>
-                      <span>•</span>
-                      <span>{clinic.reviewsCount} Patient Audits</span>
-                    </div>
-                    
-                    <div className="flex flex-wrap gap-1 pt-1.5">
-                      {clinic.specialists.map(spec => (
-                        <span key={spec} className="px-1.5 py-0.5 bg-slate-50 text-slate-500 rounded text-[9px] font-extrabold uppercase tracking-wide">
-                          {spec}
-                        </span>
-                      ))}
-                    </div>
+                    <p className="text-[11px] text-slate-300 font-medium leading-relaxed line-clamp-2">
+                      {coll.desc}
+                    </p>
+                    <span className="text-[10px] font-bold text-green-300 group-hover:text-white flex items-center gap-1 transition-colors pt-1">
+                      Explore Collection <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                    </span>
                   </div>
-                </div>
-
-                <div className="p-5 pt-0">
-                  <button 
-                    onClick={() => onSelectClinic(clinic)}
-                    className="w-full py-2.5 bg-slate-50 hover:bg-[#58B368] hover:text-white border border-slate-100 hover:border-[#58B368] text-slate-700 text-xs font-bold rounded-xl transition-colors cursor-pointer"
-                  >
-                    View Clinic Profile
-                  </button>
                 </div>
               </div>
             ))}
           </div>
         </section>
 
-        {/* 5 & 6. REAL PET EXPERIENCES & CURATED COLLECTIONS SIDE-BY-SIDE */}
+        {/* 5 & 6. COMMUNITY FEED & SIDEBAR GRID */}
         <div id="experiences-feed-section" className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
-          {/* LEFT: Real Pet Experiences (8/12 cols) */}
-          <div className="lg:col-span-8 space-y-6">
+          {/* LEFT: Social Community Feed (8/12 cols) */}
+          <div className="lg:col-span-8 space-y-6 text-left">
             <div className="flex justify-between items-center border-b border-green-100 pb-3">
               <h3 className="font-display font-black text-xl text-slate-900 flex items-center gap-2">
                 <Compass className="w-5 h-5 text-[#58B368]" />
                 <span>Real Pet Experiences</span>
               </h3>
-              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">
+              <span className="text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 text-slate-500">
                 {sortedReviews.length} experiences
               </span>
             </div>
@@ -859,27 +904,26 @@ export default function ReviewsView({
                 ))}
               </div>
             ) : sortedReviews.length === 0 ? (
-              <div className="p-12 text-center bg-white border border-slate-100 rounded-3xl space-y-3">
-                <AlertCircle className="w-12 h-12 text-slate-300 mx-auto" />
-                <h3 className="font-display font-bold text-slate-800 text-base">No Pet Experiences Found</h3>
-                <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                  Try adjusting your search queries or category filters to load matching verified veterinary stories.
+              // Premium Empty State
+              <div className="p-12 text-center bg-white border border-slate-100 rounded-3xl space-y-5">
+                <div className="w-28 h-28 mx-auto flex items-center justify-center bg-[#E5F6EC]/50 rounded-full">
+                  <span className="text-5xl">🐾</span>
+                </div>
+                <h3 className="font-display font-black text-slate-800 text-lg">
+                  Be the First to Share Your Pet's Journey
+                </h3>
+                <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
+                  Tell our community about your clinical experiences to help other pet caretakers discover the best local doctors.
                 </p>
                 <button
-                  onClick={() => {
-                    setSearchQuery('');
-                    setSelectedPetType('All');
-                    setSelectedCity('All');
-                    setSelectedRating('All');
-                    setCategoryFilter('all');
-                  }}
-                  className="px-4 py-2 bg-[#58B368] text-white font-bold rounded-xl text-xs shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-transform cursor-pointer"
+                  onClick={() => currentUser ? setShowWriteModal(true) : onOpenAuth('login')}
+                  className="px-6 py-2.5 bg-[#58B368] hover:bg-[#4ea25d] text-white font-extrabold rounded-xl text-xs shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer hover:shadow-[0_8px_20px_rgba(88,179,104,0.25)]"
                 >
-                  Reset Category
+                  Share Experience
                 </button>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-6">
                 {sortedReviews.map((rev, idx) => {
                   const hasVoted = votedReviews[rev.id];
                   const votes = (helpfulRatings[rev.id] || 0) + (idx % 3 === 0 ? 7 : idx % 5 === 1 ? 4 : 2);
@@ -888,138 +932,122 @@ export default function ReviewsView({
                   const richData = parseRichReviewText(rev.reviewText);
                   const isRich = !!richData;
                   const displayText = isRich ? richData.mainText : rev.reviewText;
-                  const displayTitle = isRich ? richData.storyTitle : '';
+                  const displayTitle = isRich ? richData.storyTitle : `${rev.petType} Care Journey`;
                   const displayVetName = isRich ? (richData.vetName || rev.veterinarianName || 'Lead Surgeon') : (rev.veterinarianName || 'Lead Surgeon');
                   const displayImages = isRich && Array.isArray(richData.images) ? richData.images : [];
+                  
+                  // Generate an avatar based on userName
+                  const userAvatarUrl = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(rev.userName)}`;
+                  
+                  // Get a high-quality default pet image based on type if no images uploaded
+                  const defaultPetImg = rev.petType === 'Dog' 
+                    ? 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=600'
+                    : rev.petType === 'Cat'
+                    ? 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&q=80&w=600'
+                    : rev.petType === 'Bird'
+                    ? 'https://images.unsplash.com/photo-1452570053594-1b985d6ea890?auto=format&fit=crop&q=80&w=600'
+                    : 'https://images.unsplash.com/photo-1585110396000-c9ffd4e4b308?auto=format&fit=crop&q=80&w=600';
+
+                  const imagesToDisplay = displayImages.length > 0 ? displayImages : [defaultPetImg];
 
                   return (
                     <motion.div
                       key={rev.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.22 }}
-                      className={`p-6 bg-white border border-slate-100 rounded-3xl shadow-sm hover:shadow-md transition-shadow text-left ${
+                      initial={{ opacity: 0, y: 15 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true }}
+                      transition={{ duration: 0.3 }}
+                      className={`p-6 bg-white border border-slate-100 rounded-3xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.02)] hover:shadow-md transition-all duration-300 text-left hover:-translate-y-1 ${
                         isAlternativeLayout ? 'border-l-4 border-l-[#58B368]' : ''
                       }`}
                     >
-                      <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
-                        <div className="flex gap-4">
-                          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-green-50 to-[#58B368]/20 flex items-center justify-center text-xl shadow-inner flex-shrink-0">
-                            {rev.petType === 'Dog' ? '🐶' : rev.petType === 'Cat' ? '🐱' : rev.petType === 'Bird' ? '🦜' : '🐾'}
-                          </div>
+                      {/* Post Header */}
+                      <div className="flex justify-between items-start gap-4">
+                        <div className="flex items-center gap-3">
+                          <img 
+                            src={userAvatarUrl} 
+                            alt={rev.userName} 
+                            className="w-10 h-10 rounded-full border border-slate-100 bg-emerald-50 object-cover" 
+                          />
                           <div>
-                            <h4 className="font-display font-black text-slate-800 text-sm leading-tight">
-                              {rev.clinicName}
-                            </h4>
-                            <span className="text-[10px] text-slate-400 block mt-0.5">
-                              📍 {rev.clinicArea}, {rev.clinicCity}
-                            </span>
-                            <span className="text-[10px] text-slate-500 font-bold block mt-1">
-                              Veterinarian: <strong className="text-slate-700">{displayVetName}</strong>
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="flex sm:flex-col items-end gap-1.5">
-                          <div className="flex text-amber-400">
-                            {Array.from({ length: 5 }).map((_, i) => (
-                              <Star
-                                key={i}
-                                className={`w-3.5 h-3.5 ${
-                                  i < rev.rating ? 'fill-amber-400 text-amber-400' : 'text-slate-100'
-                                }`}
-                              />
-                            ))}
-                          </div>
-                          <span className="text-[9px] font-extrabold uppercase text-[#58B368] tracking-wider flex items-center gap-0.5 bg-green-50 px-1.5 py-0.5 rounded border border-green-100">
-                            <ShieldCheck className="w-2.5 h-2.5" /> Verified Patient
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Review Comment */}
-                      <div className="mt-4 bg-slate-50/50 p-4 rounded-2xl border border-slate-100/30">
-                        {displayTitle && (
-                          <h5 className="font-display font-black text-slate-800 text-xs sm:text-sm mb-1">
-                            {displayTitle}
-                          </h5>
-                        )}
-                        <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-normal italic">
-                          "{displayText}"
-                        </p>
-                        
-                        {displayImages.length > 0 && (
-                          <div className="flex flex-wrap gap-2 mt-3">
-                            {displayImages.map((img: string, imgIdx: number) => (
-                              <img
-                                key={imgIdx}
-                                src={img}
-                                alt="User uploaded pet"
-                                className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-xl border border-slate-100 hover:scale-105 transition-transform cursor-pointer"
-                                onClick={() => {
-                                  const win = window.open();
-                                  if (win) {
-                                    win.document.write(`<img src="${img}" style="max-width:100%; max-height:100vh; display:block; margin:auto;" />`);
-                                  }
-                                }}
-                              />
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      
-                      {isRich && richData.platformRating && (
-                        <div className="mt-3 bg-emerald-50/60 border border-emerald-100/40 p-3 rounded-2xl flex items-start gap-2">
-                          <span className="text-sm">🚀</span>
-                          <div className="space-y-0.5">
                             <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="font-black text-emerald-800 text-[10px]">QuickVet Platform Experience:</span>
-                              <div className="flex text-amber-400">
-                                {Array.from({ length: 5 }).map((_, i) => (
-                                  <Star
-                                    key={i}
-                                    className={`w-3 h-3 ${
-                                      i < richData.platformRating ? 'fill-amber-400 text-amber-400' : 'text-slate-200'
-                                    }`}
-                                  />
-                                ))}
-                              </div>
+                              <span className="font-display font-black text-sm text-slate-800 leading-tight">
+                                {rev.userName}
+                              </span>
+                              <span className="text-[10px] text-slate-400">•</span>
+                              <span className="px-2 py-0.5 rounded-full bg-slate-50 text-slate-500 font-extrabold text-[9px] uppercase tracking-wide">
+                                {rev.petType} Parent
+                              </span>
                             </div>
-                            {richData.platformFeedback && (
-                              <p className="text-slate-500 font-medium leading-relaxed italic text-[10px]">
-                                "{richData.platformFeedback}"
-                              </p>
-                            )}
+                            <span className="text-[10px] text-slate-400 block mt-0.5">
+                              Shared {rev.date || 'recently'}
+                            </span>
                           </div>
                         </div>
-                      )}
 
-                      {/* Interaction Row */}
-                      <div className="mt-4 pt-3.5 border-t border-slate-50 flex items-center justify-between flex-wrap gap-4 text-[11px]">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-slate-700">{rev.userName}</span>
-                          <span className="text-slate-300">•</span>
-                          <span className="px-2 py-0.5 rounded-lg bg-slate-100 text-slate-500 font-bold uppercase text-[9px]">
-                            {rev.petType} Parent
-                          </span>
+                        <div className="flex items-center gap-1 text-xs text-amber-400 bg-amber-50/60 border border-amber-100 px-2 py-0.5 rounded-full">
+                          <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                          <span className="font-extrabold text-slate-800 text-[10px]">{rev.rating}</span>
                         </div>
+                      </div>
 
-                        <div className="flex items-center gap-4 text-slate-400">
-                          <span className="flex items-center gap-1">
-                            <Calendar className="w-3.5 h-3.5" />
-                            <span>{rev.date}</span>
-                          </span>
+                      {/* Post Body */}
+                      <div className="mt-4 space-y-3">
+                        <h4 className="font-display font-black text-slate-900 text-base leading-tight">
+                          {displayTitle}
+                        </h4>
+                        
+                        <p className="text-slate-600 text-xs sm:text-sm leading-relaxed">
+                          {displayText}
+                        </p>
 
-                          <button
-                            onClick={() => handleHelpfulClick(rev.id)}
-                            className={`flex items-center gap-1.5 font-extrabold transition-colors cursor-pointer ${
-                              hasVoted ? 'text-[#58B368]' : 'hover:text-slate-700 text-slate-400'
-                            }`}
-                          >
-                            <ThumbsUp className={`w-3.5 h-3.5 ${hasVoted ? 'fill-green-100' : ''}`} />
-                            <span>{votes} {hasVoted ? 'Voted Helpful' : 'Helpful?'}</span>
-                          </button>
+                        {/* Post Media (Pet Photo) */}
+                        <div className="relative h-48 sm:h-64 rounded-2xl overflow-hidden border border-slate-100/60 bg-slate-50 mt-2">
+                          <img 
+                            src={imagesToDisplay[0]} 
+                            alt="Pet Experience" 
+                            className="w-full h-full object-cover" 
+                          />
                         </div>
+                      </div>
+
+                      {/* Tagged Clinic */}
+                      <div className="mt-4 flex flex-wrap gap-2 items-center">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Clinic Tagged:</span>
+                        <button
+                          onClick={() => {
+                            const clinicObj = clinics.find(c => c.id === rev.clinicId);
+                            if (clinicObj) onSelectClinic(clinicObj);
+                          }}
+                          className="px-3 py-1 rounded-full bg-[#E5F6EC] hover:bg-[#C6ECD2] text-[#2F855A] text-xs font-bold border border-[#C6ECD2] transition-colors flex items-center gap-1 cursor-pointer"
+                        >
+                          <MapPin className="w-3 h-3" />
+                          <span>{rev.clinicName}</span>
+                          <span className="text-[10px] text-[#2F855A]/70">• {rev.clinicArea}</span>
+                        </button>
+                      </div>
+
+                      {/* Post Footer Action Bar */}
+                      <div className="mt-4 pt-4 border-t border-slate-50 flex items-center justify-between text-slate-400 text-[11px] font-semibold">
+                        <button
+                          onClick={() => handleHelpfulClick(rev.id)}
+                          className={`flex items-center gap-1.5 transition-colors cursor-pointer ${
+                            hasVoted ? 'text-[#58B368] font-bold' : 'hover:text-slate-800'
+                          }`}
+                        >
+                          <ThumbsUp className={`w-3.5 h-3.5 ${hasVoted ? 'fill-emerald-100' : ''}`} />
+                          <span>{votes} Likes</span>
+                        </button>
+
+                        <button className="flex items-center gap-1.5 hover:text-slate-800 cursor-pointer">
+                          <MessageSquare className="w-3.5 h-3.5" />
+                          <span>{((rev.id.length + 3) % 5) + 2} Comments</span>
+                        </button>
+
+                        <button className="flex items-center gap-1.5 hover:text-slate-800 cursor-pointer">
+                          <Share2 className="w-3.5 h-3.5" />
+                          <span>Share</span>
+                        </button>
                       </div>
                     </motion.div>
                   );
@@ -1051,58 +1079,152 @@ export default function ReviewsView({
             )}
           </div>
 
-          {/* RIGHT: Curated Collections */}
+          {/* RIGHT SIDEBAR (4/12 cols) */}
           <div className="lg:col-span-4 space-y-6">
-            <h3 className="font-display font-black text-xl text-slate-900 flex items-center gap-2">
-              <FolderHeart className="w-5 h-5 text-[#58B368]" />
-              <span>Curated Collections</span>
-            </h3>
+            
+            {/* Emergency Hotline Card */}
+            <div className="bg-gradient-to-br from-red-600 to-rose-750 text-white rounded-3xl p-6 shadow-md border border-red-500/20 relative overflow-hidden text-left">
+              <div className="absolute -right-4 -bottom-4 text-7xl opacity-10 pointer-events-none">🚑</div>
+              <span className="bg-white/20 text-white px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider">
+                24/7 Dispatch
+              </span>
+              <h4 className="font-display font-black text-lg mt-2 leading-tight">
+                Medical Hotline
+              </h4>
+              <p className="text-[11px] text-red-100/90 mt-1 leading-relaxed">
+                Call our operators for immediate veterinary dispatch and emergency first-aid guide.
+              </p>
+              <a 
+                href="tel:18001234567"
+                className="mt-4 w-full py-3 bg-white text-red-600 hover:bg-red-50 font-black text-xs rounded-xl shadow-sm transition-all active:scale-[0.97] flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Phone className="w-4 h-4" />
+                <span>Call 1800-123-4567</span>
+              </a>
+            </div>
 
-            <div className="grid grid-cols-1 gap-5">
-              {COLLECTIONS.map((coll) => (
-                <div
-                  key={coll.id}
-                  onClick={() => handleCollectionSelect(coll.tag)}
-                  className="relative h-44 rounded-3xl overflow-hidden shadow-md group cursor-pointer text-left"
-                >
-                  <img 
-                    src={coll.image} 
-                    alt={coll.title} 
-                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out" 
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-900/40 to-slate-950/20" />
-                  
-                  <div className="absolute inset-0 p-5 flex flex-col justify-between text-white z-10">
-                    <div className="flex justify-between items-start">
-                      <span className="bg-[#58B368] text-white px-2.5 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-wider">
-                        {coll.tag}
-                      </span>
-                      <span className="text-[9px] text-[#58B368] bg-white px-2 py-0.5 rounded-md font-black">
-                        {coll.count}
-                      </span>
+            {/* Trending Topics */}
+            <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm text-left">
+              <h4 className="font-display font-black text-slate-800 text-sm border-b border-green-50 pb-2.5 flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-[#58B368]" />
+                <span>Trending Topics</span>
+              </h4>
+              <div className="mt-3.5 space-y-3">
+                {[
+                  { tag: '#RainySeasonCare', count: '142 experiences' },
+                  { tag: '#ParvoAlert', count: '98 checkups' },
+                  { tag: '#PuppyVaccination', count: '210 guides' },
+                  { tag: '#EmergencyFirstAid', count: '87 recoveries' },
+                  { tag: '#ExoticPetsCare', count: '45 recommendations' }
+                ].map((topic) => (
+                  <button
+                    key={topic.tag}
+                    onClick={() => {
+                      setSearchQuery(topic.tag.replace('#', ''));
+                      document.getElementById('experiences-feed-section')?.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    className="w-full flex justify-between items-center text-xs group cursor-pointer"
+                  >
+                    <span className="font-bold text-[#2F855A] group-hover:underline">
+                      {topic.tag}
+                    </span>
+                    <span className="text-slate-400 font-semibold text-[10px]">
+                      {topic.count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Top Contributors */}
+            <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm text-left">
+              <h4 className="font-display font-black text-slate-800 text-sm border-b border-green-50 pb-2.5 flex items-center gap-2">
+                <UserCheck className="w-4 h-4 text-[#58B368]" />
+                <span>Top Contributors</span>
+              </h4>
+              <div className="mt-3.5 space-y-3.5">
+                {[
+                  { name: 'Rahul Malhotra', seed: 'Rahul', badge: 'Super Parent', stories: 12 },
+                  { name: 'Dr. Myra Sen', seed: 'Myra', badge: 'Verified Vet', stories: 9 },
+                  { name: 'Kavitha Iyer', seed: 'Kavitha', badge: 'Community Guide', stories: 7 }
+                ].map((user) => (
+                  <div key={user.name} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <img 
+                        src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${user.seed}`} 
+                        alt={user.name} 
+                        className="w-8 h-8 rounded-full border border-slate-100 bg-slate-50" 
+                      />
+                      <div className="leading-tight">
+                        <span className="font-black text-slate-800 text-xs block">{user.name}</span>
+                        <span className="text-[9px] text-[#58B368] font-bold">{user.badge}</span>
+                      </div>
                     </div>
+                    <span className="text-[10px] text-slate-400 font-extrabold uppercase">
+                      {user.stories} Posts
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
 
-                    <div className="space-y-1.5">
-                      <h4 className="text-sm font-black tracking-tight leading-tight">
-                        {coll.title}
-                      </h4>
-                      <p className="text-[10px] text-slate-300 font-medium leading-relaxed line-clamp-2">
-                        {coll.desc}
-                      </p>
-                      <span className="text-[9px] font-bold text-green-300 group-hover:text-white flex items-center gap-1 transition-colors pt-1">
-                        Explore Collection <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
-                      </span>
+            {/* Upcoming Vaccination Camps */}
+            <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm text-left">
+              <h4 className="font-display font-black text-slate-800 text-sm border-b border-green-50 pb-2.5 flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-[#58B368]" />
+                <span>Vaccination Camps</span>
+              </h4>
+              <div className="mt-3.5 space-y-3.5">
+                {[
+                  { title: 'Free Anti-Rabies Camp', loc: 'JP Nagar Clinic', date: 'July 12' },
+                  { title: 'Feline Wellness Drive', loc: 'Indiranagar Center', date: 'July 19' }
+                ].map((camp) => (
+                  <div key={camp.title} className="flex items-start gap-2 text-xs">
+                    <span className="text-base mt-0.5">💉</span>
+                    <div>
+                      <span className="font-black text-slate-800 block leading-tight">{camp.title}</span>
+                      <span className="text-slate-400 text-[10px] mt-0.5 block">{camp.loc} • <b>{camp.date}</b></span>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
+
+            {/* Nearby Clinics */}
+            <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm text-left">
+              <h4 className="font-display font-black text-slate-800 text-sm border-b border-green-50 pb-2.5 flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-[#58B368]" />
+                <span>Nearby Clinics</span>
+              </h4>
+              <div className="mt-3.5 space-y-3.5">
+                {clinics.slice(0, 3).map((clinic) => (
+                  <div 
+                    key={clinic.id} 
+                    onClick={() => onSelectClinic(clinic)}
+                    className="group flex items-center justify-between cursor-pointer"
+                  >
+                    <div>
+                      <span className="font-black text-slate-800 text-xs block group-hover:text-[#58B368] transition-colors truncate max-w-[150px]">
+                        {clinic.name}
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-semibold block mt-0.5">
+                        📍 {clinic.area}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1 text-[10px] font-black text-slate-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">
+                      ⭐ {Number(clinic.rating).toFixed(1)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
           </div>
 
         </div>
 
         {/* 7. SHARE YOUR EXPERIENCE CTA */}
-        <section className="bg-gradient-to-br from-[#0F2D19] to-[#24633E] text-white p-8 md:p-12 rounded-[32px] shadow-lg flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden">
+        <section className="bg-gradient-to-br from-[#0F2D19] to-[#24633E] text-white p-8 md:p-12 rounded-[32px] shadow-lg flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden text-left">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,_var(--tw-gradient-stops))] from-green-500/10 via-transparent to-transparent pointer-events-none" />
           
           <div className="space-y-4 max-w-xl">
