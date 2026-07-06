@@ -543,7 +543,22 @@ export default function App() {
               userLocation={userLocation}
               userLocationLabel={userLocationLabel}
               onSelectClinic={(id) => { setSelectedClinicId(id); setActiveTab('find_vets'); }}
-              onNavigateToFind={() => setActiveTab('find_vets')}
+              onNavigateToFind={(specialty) => {
+                if (specialty) {
+                  let dbSpecialist = 'All';
+                  if (specialty === 'Dogs') dbSpecialist = 'Dog';
+                  else if (specialty === 'Cats') dbSpecialist = 'Cat';
+                  else if (specialty === 'Birds') dbSpecialist = 'Bird';
+                  else if (specialty === 'Rabbits') dbSpecialist = 'Rabbit';
+                  else if (specialty === 'Exotics') dbSpecialist = 'Exotics';
+                  else if (specialty === 'Horses') dbSpecialist = 'Horse';
+                  else if (specialty === 'Hamsters') dbSpecialist = 'Hamster';
+                  setFilterSpecialist(dbSpecialist);
+                } else {
+                  setFilterSpecialist('All');
+                }
+                setActiveTab('find_vets');
+              }}
               onNavigateToEmergency={() => setActiveTab('emergency')}
               onNavigateToVetRegister={() => setAuthModalType('signup')}
             />
