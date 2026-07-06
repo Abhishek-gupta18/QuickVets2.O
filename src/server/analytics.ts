@@ -114,6 +114,9 @@ function buildSeriesQuery(labelSql: string, fromSql: string, whereSql = ''): str
   if (!/^[a-zA-Z0-9_]+$/.test(fromSql)) {
     throw new Error('Invalid input');
   }
+  if (whereSql !== '' && !/^[a-zA-Z0-9_]+$/.test(whereSql)) {
+    throw new Error('Invalid input');
+  }
   return `
     SELECT ${labelSql} AS label, COUNT(*)::int AS value
     FROM ${fromSql}
