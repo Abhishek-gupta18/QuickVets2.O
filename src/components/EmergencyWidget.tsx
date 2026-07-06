@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Phone, Activity, AlertTriangle, ShieldAlert, X, Clock, MapPin, 
   CheckCircle2, Star, Zap, Bell, Shield, Truck, BadgeCheck, 
@@ -7,6 +7,83 @@ import {
 import { User, EmergencyRequest } from '../types';
 import confetti from 'canvas-confetti';
 import { motion, AnimatePresence } from 'motion/react';
+
+interface CountUpProps {
+  end: number;
+  duration?: number;
+  suffix?: string;
+  decimals?: number;
+  useFormatter?: boolean;
+}
+
+function CountUp({ end, duration = 1.2, suffix = '', decimals = 0, useFormatter = false }: CountUpProps) {
+  const [count, setCount] = useState(0);
+  const elementRef = useRef<HTMLSpanElement>(null);
+  const [started, setStarted] = useState(false);
+
+  useEffect(() => {
+    if (typeof IntersectionObserver === 'undefined') {
+      setStarted(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setStarted(true);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    const currentRef = elementRef.current;
+    if (currentRef) {
+      observer.observe(currentRef);
+    }
+
+    return () => {
+      if (currentRef) {
+        observer.unobserve(currentRef);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!started) return;
+
+    let startTimestamp: number | null = null;
+    let animationFrameId: number;
+
+    const step = (timestamp: number) => {
+      if (!startTimestamp) startTimestamp = timestamp;
+      const progress = Math.min((timestamp - startTimestamp) / (duration * 1000), 1);
+      
+      const easedProgress = progress * (2 - progress);
+      const currentVal = easedProgress * end;
+      setCount(currentVal);
+
+      if (progress < 1) {
+        animationFrameId = window.requestAnimationFrame(step);
+      } else {
+        setCount(end);
+      }
+    };
+
+    animationFrameId = window.requestAnimationFrame(step);
+    return () => window.cancelAnimationFrame(animationFrameId);
+  }, [started, end, duration]);
+
+  const displayVal = useFormatter 
+    ? Math.floor(count).toLocaleString('en-IN') 
+    : count.toFixed(decimals);
+
+  return (
+    <span ref={elementRef} className="tabular-nums">
+      {displayVal}
+      {suffix}
+    </span>
+  );
+}
 
 interface EmergencyWidgetProps {
   currentUser: User | null;
@@ -648,35 +725,252 @@ export default function EmergencyWidget({
         </div>
       </section>
 
-      {/* ===== WHY QUICKVET (COMPRESSED TO 3 PILLARS) ===== */}
-      <section className="py-20 bg-[#F4FBF3] border-b border-slate-100">
-        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-12">
+      {/* ===== WHY QUICKVET (REDESIGNED TO PREMIUM SHOWCASE) ===== */}
+      <section className="py-24 bg-[#F4FBF3]/30 border-b border-slate-100 relative overflow-hidden">
+        {/* Subtle Veterinary-themed Background Pattern (<5% opacity) */}
+        <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.03] select-none">
+          <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="trust-grid" width="160" height="160" patternUnits="userSpaceOnUse">
+                {/* Shield Outline */}
+                <path d="M 30 20 C 30 20 30 35 20 42 C 10 35 10 20 10 20 L 20 16 Z" fill="none" stroke="#10B981" strokeWidth="2" />
+                {/* ECG Heartbeat path */}
+                <path d="M 40 80 L 70 80 L 80 65 L 88 95 L 96 50 L 104 105 L 110 75 L 115 80 L 160 80" fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                {/* Medical Cross */}
+                <path d="M 135 25 L 145 25 M 140 20 L 140 30" stroke="#10B981" strokeWidth="2" strokeLinecap="round" />
+                {/* Paw print */}
+                <circle cx="20" cy="120" r="3" fill="#10B981" />
+                <circle cx="12" cy="114" r="2.5" fill="#10B981" />
+                <circle cx="28" cy="114" r="2.5" fill="#10B981" />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#trust-grid)" />
+          </svg>
+          {/* Blurred green circle */}
+          <div className="absolute top-1/2 left-2/3 w-[600px] h-[600px] rounded-full bg-[#58B368] blur-[160px] opacity-35" />
+        </div>
+
+        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-12 relative z-10 w-full">
           
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-            <div className="lg:col-span-4 text-left space-y-3">
-              <span className="text-xs font-black uppercase tracking-widest text-[#58B368] bg-green-100/40 px-3 py-1.5 rounded border border-green-200/40 inline-block">Security Matrix</span>
-              <h3 className="font-display font-black text-2xl sm:text-3xl text-gray-900">Why Trust QuickVet</h3>
-              <p className="text-slate-500 text-xs sm:text-sm">We provide secure routing and background-checked vet responders.</p>
-            </div>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20 items-center">
             
-            <div className="lg:col-span-8 grid grid-cols-1 sm:grid-cols-3 gap-6">
-              {[
-                { icon: Shield, title: 'Verified Emergency Vets', desc: '100% license checked and background audited.' },
-                { icon: Compass, title: 'Live GPS Pinpoint', desc: 'Coordinates are transmitted to vets automatically.' },
-                { icon: Clock, title: '24/7 Active Network', desc: 'Constant surveillance and active responders 365 days.' },
-              ].map((feat, idx) => {
-                const Icon = feat.icon;
-                return (
-                  <div key={idx} className="bg-white rounded-2xl p-6 border border-green-100/30 text-left space-y-3 shadow-sm">
-                    <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 text-emerald-600">
-                      <Icon className="w-5 h-5" />
-                    </div>
-                    <h4 className="font-display font-bold text-xs text-slate-900 uppercase tracking-wider">{feat.title}</h4>
-                    <p className="text-[11.5px] text-slate-500 leading-normal">{feat.desc}</p>
+            {/* Left Side: Heading, Subtitle & Trust Score Panel */}
+            <motion.div 
+              initial={{ opacity: 0, x: -50 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true, margin: "-100px" }}
+              transition={{ duration: 0.6 }}
+              className="lg:col-span-5 text-left space-y-6"
+            >
+              <span className="text-xs font-black uppercase tracking-widest text-[#2D855A] bg-green-50 px-3.5 py-2 rounded-lg border border-green-100 inline-block">
+                WHY PET PARENTS TRUST US
+              </span>
+              <h2 className="font-display font-black text-3xl sm:text-4xl text-gray-900 tracking-tight leading-tight">
+                Your Pet's Safety Is Our Highest Priority
+              </h2>
+              <p className="text-slate-500 text-sm leading-relaxed max-w-xl">
+                Every emergency request is handled through a secure, verified, and real-time response network designed to get professional veterinary care to your pet as quickly as possible.
+              </p>
+
+              {/* Premium Trust Score Panel */}
+              <div className="bg-white/80 backdrop-blur-md rounded-[24px] p-6 border border-green-100/50 shadow-[0_15px_35px_rgba(88,179,104,0.06)] flex items-center gap-6 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none" />
+                <div className="space-y-1.5 flex-grow">
+                  <div className="flex items-center gap-1.5">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <Star key={s} className="w-5 h-5 fill-amber-400 text-amber-400" />
+                    ))}
+                    <span className="font-display font-black text-slate-800 text-lg ml-1">4.9/5</span>
                   </div>
-                );
-              })}
+                  <p className="text-xs font-semibold text-slate-400 leading-normal">
+                    Rated by thousands of pet owners across India for speed, professionalism, and reliability.
+                  </p>
+                </div>
+                <div className="border-l border-slate-100 pl-6 flex-shrink-0 text-center">
+                  <span className="block font-display font-black text-3xl text-[#2D855A]">
+                    12K+
+                  </span>
+                  <span className="block text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                    Pet Parents
+                  </span>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Right Side: 2x2 Responsive Grid / Carousel */}
+            <div className="lg:col-span-7">
+              <motion.div
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, margin: "-100px" }}
+                variants={{
+                  visible: { transition: { staggerChildren: 0.1 } }
+                }}
+                className="flex md:grid overflow-x-auto md:overflow-x-visible snap-x snap-mandatory md:snap-none gap-6 pb-6 md:grid-cols-2 scrollbar-none"
+              >
+                {[
+                  {
+                    title: 'Verified Emergency Veterinarians',
+                    desc: 'Every emergency responder is license-verified and background checked before joining the network.',
+                    badge: '100% Verified',
+                    icon: (
+                      <svg viewBox="0 0 120 100" className="w-full h-24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect width="120" height="100" rx="16" fill="url(#grad-vets)" />
+                        <defs>
+                          <linearGradient id="grad-vets" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stopColor="#ECFDF5" />
+                            <stop offset="100%" stopColor="#D1FAE5" />
+                          </linearGradient>
+                        </defs>
+                        <circle cx="60" cy="35" r="14" fill="#34D399" />
+                        <path d="M 38 75 C 38 60 48 55 60 55 C 72 55 82 60 82 75 Z" fill="#34D399" />
+                        <path d="M 52 55 L 52 75 M 68 55 L 68 75" stroke="white" strokeWidth="2.5" />
+                        <rect x="74" y="24" width="22" height="22" rx="11" fill="white" stroke="#10B981" strokeWidth="2" />
+                        <path d="M 80 35 L 84 38 L 90 32" stroke="#10B981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )
+                  },
+                  {
+                    title: 'Live GPS Tracking',
+                    desc: 'Your location is securely transmitted to the nearest available veterinary professionals in real time.',
+                    badge: 'Live Tracking',
+                    icon: (
+                      <svg viewBox="0 0 120 100" className="w-full h-24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect width="120" height="100" rx="16" fill="url(#grad-gps)" />
+                        <defs>
+                          <linearGradient id="grad-gps" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stopColor="#EFF6FF" />
+                            <stop offset="100%" stopColor="#DBEAFE" />
+                          </linearGradient>
+                        </defs>
+                        <line x1="20" y1="10" x2="20" y2="90" stroke="#BFDBFE" strokeWidth="1.5" strokeDasharray="3 3" />
+                        <line x1="60" y1="10" x2="60" y2="90" stroke="#BFDBFE" strokeWidth="1.5" strokeDasharray="3 3" />
+                        <line x1="100" y1="10" x2="100" y2="90" stroke="#BFDBFE" strokeWidth="1.5" strokeDasharray="3 3" />
+                        <line x1="10" y1="30" x2="110" y2="30" stroke="#BFDBFE" strokeWidth="1.5" strokeDasharray="3 3" />
+                        <line x1="10" y1="70" x2="110" y2="70" stroke="#BFDBFE" strokeWidth="1.5" strokeDasharray="3 3" />
+                        <path d="M 30 70 L 60 70 L 60 40 L 90 40" stroke="#3B82F6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                        <circle cx="30" cy="70" r="4" fill="#3B82F6" />
+                        <path d="M 90 28 C 86 28 84 32 90 40 C 96 32 94 28 90 28 Z" fill="#EF4444" stroke="white" strokeWidth="1" />
+                        <circle cx="90" cy="32" r="1.5" fill="white" />
+                      </svg>
+                    )
+                  },
+                  {
+                    title: '24×7 Emergency Response',
+                    desc: 'Our emergency coordination network continuously monitors requests every hour of every day.',
+                    badge: 'Always Active',
+                    icon: (
+                      <svg viewBox="0 0 120 100" className="w-full h-24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect width="120" height="100" rx="16" fill="url(#grad-247)" />
+                        <defs>
+                          <linearGradient id="grad-247" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stopColor="#FFFBEB" />
+                            <stop offset="100%" stopColor="#FEF3C7" />
+                          </linearGradient>
+                        </defs>
+                        <rect x="25" y="25" width="32" height="22" rx="4" fill="white" stroke="#F59E0B" strokeWidth="1.5" />
+                        <rect x="63" y="25" width="32" height="22" rx="4" fill="white" stroke="#F59E0B" strokeWidth="1.5" />
+                        <path d="M 30 36 L 36 36 L 40 30 L 44 42 L 48 36 L 52 36" stroke="#F59E0B" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        <path d="M 68 36 L 74 36 L 78 30 L 82 42 L 86 36 L 90 36" stroke="#10B981" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        <circle cx="60" cy="65" r="12" fill="white" stroke="#F59E0B" strokeWidth="2" />
+                        <path d="M 60 58 L 60 65 L 66 65" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round" />
+                        <circle cx="70" cy="56" r="2" fill="#EF4444" />
+                      </svg>
+                    )
+                  },
+                  {
+                    title: 'Secure Medical Records',
+                    desc: "Your pet's medical information is encrypted and only shared with the responding veterinarian.",
+                    badge: 'Bank-Level Security',
+                    icon: (
+                      <svg viewBox="0 0 120 100" className="w-full h-24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect width="120" height="100" rx="16" fill="url(#grad-secure)" />
+                        <defs>
+                          <linearGradient id="grad-secure" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stopColor="#F3E8FF" />
+                            <stop offset="100%" stopColor="#E9D5FF" />
+                          </linearGradient>
+                        </defs>
+                        <rect x="35" y="20" width="50" height="60" rx="6" fill="white" stroke="#8B5CF6" strokeWidth="2" />
+                        <line x1="45" y1="35" x2="65" y2="35" stroke="#E2E8F0" stroke-width="2.5" stroke-linecap="round" />
+                        <line x1="45" y1="45" x2="75" y2="45" stroke="#E2E8F0" stroke-width="2.5" stroke-linecap="round" />
+                        <line x1="45" y1="55" x2="70" y2="55" stroke="#E2E8F0" stroke-width="2.5" stroke-linecap="round" />
+                        <path d="M 72 50 C 72 50 72 65 60 72 C 48 65 48 50 48 50 L 60 46 Z" fill="#8B5CF6" stroke="white" stroke-width="1.5" />
+                        <path d="M 57 54 L 59 56 L 63 52" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                      </svg>
+                    )
+                  }
+                ].map((card, idx) => (
+                  <motion.div
+                    key={idx}
+                    variants={{
+                      hidden: { opacity: 0, y: 30 },
+                      visible: { opacity: 1, y: 0, transition: { duration: 0.5 } }
+                    }}
+                    className="snap-center shrink-0 w-[80vw] md:w-auto bg-gradient-to-br from-white/95 to-emerald-50/10 backdrop-blur-md rounded-[24px] p-6 border border-green-100/40 text-left shadow-[0_8px_30px_rgb(0,0,0,0.015)] hover:shadow-[0_20px_45px_rgba(88,179,104,0.08)] hover:-translate-y-2 transition-all duration-200 group"
+                  >
+                    <div className="mb-4 overflow-hidden rounded-2xl group-hover:scale-105 transition-transform duration-300">
+                      {card.icon}
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <h4 className="font-display font-black text-sm text-slate-900 leading-tight">
+                          {card.title}
+                        </h4>
+                      </div>
+                      <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                        {card.desc}
+                      </p>
+                      <span className="inline-block mt-1 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 bg-green-50 text-[#2D855A] rounded border border-green-100">
+                        {card.badge}
+                      </span>
+                    </div>
+                  </motion.div>
+                ))}
+              </motion.div>
             </div>
+
+          </div>
+
+          {/* Statistics Strip */}
+          <div className="mt-16 pt-12 border-t border-slate-100 w-full">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+              {[
+                { end: 500, suffix: '+', label: 'Verified Clinics' },
+                { end: 10000, suffix: '+', label: 'Emergency Cases Handled', useFormatter: true },
+                { end: 7, suffix: ' min', label: 'Average Response Time' },
+                { end: 24, suffix: '×7', label: 'Always Available', isConst: true }
+              ].map((stat, idx) => (
+                <div key={idx} className="text-center space-y-1.5">
+                  <span className="block font-display font-black text-3xl md:text-4xl text-[#2D855A]">
+                    {stat.isConst ? (
+                      <span>{stat.end}{stat.suffix}</span>
+                    ) : (
+                      <CountUp end={stat.end} suffix={stat.suffix} useFormatter={stat.useFormatter} />
+                    )}
+                  </span>
+                  <span className="block text-[11px] font-bold text-slate-400 uppercase tracking-wide">
+                    {stat.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Trust Indicators Row */}
+          <div className="mt-12 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-slate-400 text-xs font-bold border-t border-slate-100/50 pt-8">
+            {[
+              'Licensed Veterinarians',
+              'Real-Time GPS',
+              'Encrypted Data',
+              'Background Verified',
+              'Emergency Coordination'
+            ].map((text, idx) => (
+              <div key={idx} className="flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                <span>{text}</span>
+              </div>
+            ))}
           </div>
 
         </div>
