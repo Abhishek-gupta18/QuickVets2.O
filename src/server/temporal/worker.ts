@@ -19,6 +19,7 @@
  *    - TEMPORAL_TASK_QUEUE (default: quickvet-vaccinations)
  */
 import 'dotenv/config';
+import { fileURLToPath } from 'node:url';
 import { NativeConnection, Worker } from '@temporalio/worker';
 import * as activities from './activities';
 
@@ -43,7 +44,7 @@ async function run() {
     namespace: TEMPORAL_NAMESPACE,
     taskQueue: TASK_QUEUE,
     // Workflows are loaded from the compiled workflow file
-    workflowsPath: new URL('./workflows.ts', import.meta.url).pathname,
+    workflowsPath: fileURLToPath(new URL('./workflows.ts', import.meta.url)),
     // Activities are passed directly (they have side effects, so not sandboxed)
     activities,
   });

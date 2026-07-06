@@ -3,6 +3,7 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import { rateLimit } from 'express-rate-limit';
 import crypto from 'crypto';
+import http from 'http';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import bcrypt from 'bcryptjs';
@@ -35,7 +36,33 @@ const upload = multer({
 
 const app = express();
 app.set('trust proxy', true);
-const PORT = process.env.PORT || 3000;
+const preferredPort = Number(process.env.PORT || 3000);
+let activePort = preferredPort;
+
+function getAvailablePort(startPort: number): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const server = http.createServer();
+
+    server.once('error', (error: NodeJS.ErrnoException) => {
+      if (error.code === 'EADDRINUSE') {
+        resolve(getAvailablePort(startPort + 1));
+        return;
+      }
+      reject(error);
+    });
+
+    server.once('listening', () => {
+      const address = server.address();
+      if (typeof address === 'object' && address) {
+        server.close(() => resolve(address.port));
+      } else {
+        resolve(startPort);
+      }
+    });
+
+    server.listen(startPort, '0.0.0.0');
+  });
+}
 
 // Rate limiter to prevent brute-force attacks on authentication endpoints
 const authLimiter = rateLimit({
@@ -1766,8 +1793,9 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🐾 QuickVet Server running on http://0.0.0.0:${PORT}`);
+  activePort = await getAvailablePort(preferredPort);
+  app.listen(activePort, '0.0.0.0', () => {
+    console.log(`🐾 QuickVet Server running on http://0.0.0.0:${activePort}`);
   });
 
   // Graceful shutdown
