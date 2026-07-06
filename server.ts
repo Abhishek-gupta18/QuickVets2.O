@@ -159,9 +159,9 @@ function setAuthCookie(res: any, token: string, role: string): void {
   const isProduction = process.env.NODE_ENV === 'production';
   res.cookie('quickvet_auth', token, {
     httpOnly: true,
-    secure: isProduction, // HTTPS only in production; allow HTTP in dev
-    sameSite: isProduction ? 'strict' : 'lax',
-    maxAge: expirySeconds * 1000, // cookie takes milliseconds
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
+    maxAge: expirySeconds * 1000,
     path: '/',
   });
 }
