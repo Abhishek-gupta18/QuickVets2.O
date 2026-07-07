@@ -154,6 +154,13 @@ export default function ReviewsView({
   const clinicStartX = useRef(0);
   const clinicScrollLeft = useRef(0);
 
+  // Infinite scrolling marquee refs for collections (opposite direction)
+  const collectionScrollRef = useRef<HTMLDivElement>(null);
+  const isCollectionInteracting = useRef(false);
+  const isCollectionDown = useRef(false);
+  const collectionStartX = useRef(0);
+  const collectionScrollLeft = useRef(0);
+
   // Swipe gesture trackers
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
@@ -366,6 +373,79 @@ export default function ReviewsView({
     }, 1000);
   };
 
+  // Infinite scrolling marquee auto scroll logic for Curated Collections (opposite direction)
+  useEffect(() => {
+    const container = collectionScrollRef.current;
+    if (!container) return;
+
+    let animationId: number;
+    let lastTime = performance.now();
+    let hasInitialized = false;
+
+    const step = (time: number) => {
+      if (!isCollectionInteracting.current && container) {
+        const elapsed = time - lastTime;
+        const speed = 0.035; // Continuous marquee speed
+        
+        if (!hasInitialized && container.scrollWidth > 0) {
+          container.scrollLeft = (container.scrollWidth / 4) * 2;
+          hasInitialized = true;
+        }
+
+        container.scrollLeft -= speed * elapsed;
+
+        const setWidth = container.scrollWidth / 4;
+        if (setWidth > 0 && container.scrollLeft <= setWidth) {
+          container.scrollLeft += setWidth;
+        }
+      }
+      lastTime = time;
+      animationId = requestAnimationFrame(step);
+    };
+
+    animationId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(animationId);
+  }, []);
+
+  const handleCollectionMouseDown = (e: React.MouseEvent) => {
+    isCollectionDown.current = true;
+    isCollectionInteracting.current = true;
+    collectionStartX.current = e.pageX - (collectionScrollRef.current?.offsetLeft || 0);
+    collectionScrollLeft.current = collectionScrollRef.current?.scrollLeft || 0;
+  };
+
+  const handleCollectionMouseLeave = () => {
+    isCollectionDown.current = false;
+    isCollectionInteracting.current = false;
+  };
+
+  const handleCollectionMouseUp = () => {
+    isCollectionDown.current = false;
+    setTimeout(() => {
+      if (!isCollectionDown.current) {
+        isCollectionInteracting.current = false;
+      }
+    }, 200);
+  };
+
+  const handleCollectionMouseMove = (e: React.MouseEvent) => {
+    if (!isCollectionDown.current || !collectionScrollRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - collectionScrollRef.current.offsetLeft;
+    const walk = (x - collectionStartX.current) * 1.5;
+    collectionScrollRef.current.scrollLeft = collectionScrollLeft.current - walk;
+  };
+
+  const handleCollectionTouchStart = () => {
+    isCollectionInteracting.current = true;
+  };
+
+  const handleCollectionTouchEnd = () => {
+    setTimeout(() => {
+      isCollectionInteracting.current = false;
+    }, 1000);
+  };
+
   // Keyboard navigation handler
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -521,6 +601,59 @@ export default function ReviewsView({
     .slice(0, 8);
 
   const duplicatedClinics = [...featuredClinics, ...featuredClinics, ...featuredClinics, ...featuredClinics];
+
+  const curatedCollections = [
+    {
+      id: 'coll-emergency',
+      title: 'Top Emergency Clinics',
+      desc: '24/7 critical trauma centers with dedicated blood banks & ICU facilities.',
+      count: '6 locations',
+      image: 'https://images.unsplash.com/photo-1584132967334-10e028bd69f7?auto=format&fit=crop&q=80&w=500',
+      tag: 'Emergency'
+    },
+    {
+      id: 'coll-vaccines',
+      title: 'Best Vaccination Centers',
+      desc: 'Audited clinics providing standard immunizations under cold chain storage.',
+      count: '8 locations',
+      image: 'https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&q=80&w=500',
+      tag: 'Vaccination'
+    },
+    {
+      id: 'coll-parks',
+      title: 'Pet Friendly Parks',
+      desc: 'Leash-free dog parks, play areas, and pet socialization hubs nearby.',
+      count: '15 locations',
+      image: 'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&q=80&w=500',
+      tag: 'Outdoor'
+    },
+    {
+      id: 'coll-puppy',
+      title: 'Puppy Starter Guide',
+      desc: 'Essential initial care checklist, nutrition tips, and vaccine schedule for new owners.',
+      count: '12 guides',
+      image: 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&q=80&w=500',
+      tag: 'Puppy'
+    },
+    {
+      id: 'coll-cats',
+      title: 'Cat Wellness Clinics',
+      desc: 'Feline-friendly certified clinics with separate waiting rooms and quiet zones.',
+      count: '8 locations',
+      image: 'https://images.unsplash.com/photo-1533738363-b7f9aef128ce?auto=format&fit=crop&q=80&w=500',
+      tag: 'Feline Care'
+    },
+    {
+      id: 'coll-exotics',
+      title: 'Exotic Pet Specialists',
+      desc: 'Experienced veterinarians specialized in birds, rabbits, reptiles, and small mammals.',
+      count: '4 locations',
+      image: 'https://images.unsplash.com/photo-1607990283143-e81e7a2c93ab?auto=format&fit=crop&q=80&w=500',
+      tag: 'Exotics'
+    }
+  ];
+
+  const duplicatedCollections = [...curatedCollections, ...curatedCollections, ...curatedCollections, ...curatedCollections];
 
   const handleCollectionSelect = (tag: string) => {
     if (tag === 'Emergency') {
@@ -853,93 +986,64 @@ export default function ReviewsView({
             <p className="text-xs text-slate-400 mt-0.5">Explore tailored clinical maps and advice verified by QuickVet specialist partners.</p>
           </div>
 
-          <div className="flex overflow-x-auto snap-x snap-mandatory scrollbar-none gap-6 pb-4">
-            {[
-              {
-                id: 'coll-emergency',
-                title: 'Top Emergency Clinics',
-                desc: '24/7 critical trauma centers with dedicated blood banks & ICU facilities.',
-                count: '6 locations',
-                image: 'https://images.unsplash.com/photo-1584132967334-10e028bd69f7?auto=format&fit=crop&q=80&w=500',
-                tag: 'Emergency'
-              },
-              {
-                id: 'coll-vaccines',
-                title: 'Best Vaccination Centers',
-                desc: 'Audited clinics providing standard immunizations under cold chain storage.',
-                count: '8 locations',
-                image: 'https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&q=80&w=500',
-                tag: 'Vaccination'
-              },
-              {
-                id: 'coll-parks',
-                title: 'Pet Friendly Parks',
-                desc: 'Leash-free dog parks, play areas, and pet socialization hubs nearby.',
-                count: '15 locations',
-                image: 'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&q=80&w=500',
-                tag: 'Outdoor'
-              },
-              {
-                id: 'coll-puppy',
-                title: 'Puppy Starter Guide',
-                desc: 'Essential initial care checklist, nutrition tips, and vaccine schedule for new owners.',
-                count: '12 guides',
-                image: 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&q=80&w=500',
-                tag: 'Puppy'
-              },
-              {
-                id: 'coll-cats',
-                title: 'Cat Wellness Clinics',
-                desc: 'Feline-friendly certified clinics with separate waiting rooms and quiet zones.',
-                count: '8 locations',
-                image: 'https://images.unsplash.com/photo-1533738363-b7f9aef128ce?auto=format&fit=crop&q=80&w=500',
-                tag: 'Feline Care'
-              },
-              {
-                id: 'coll-exotics',
-                title: 'Exotic Pet Specialists',
-                desc: 'Experienced veterinarians specialized in birds, rabbits, reptiles, and small mammals.',
-                count: '4 locations',
-                image: 'https://images.unsplash.com/photo-1607990283143-e81e7a2c93ab?auto=format&fit=crop&q=80&w=500',
-                tag: 'Exotics'
-              }
-            ].map((coll) => (
-              <div
-                key={coll.id}
-                onClick={() => handleCollectionSelect(coll.tag)}
-                className="relative flex-shrink-0 w-[78vw] md:w-[320px] h-64 rounded-3xl overflow-hidden shadow-md group cursor-pointer text-left snap-center hover:-translate-y-1 transition-all duration-300"
-              >
-                <img 
-                  src={coll.image} 
-                  alt={coll.title} 
-                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out" 
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/95 via-slate-900/40 to-slate-950/10" />
-                
-                <div className="absolute inset-0 p-6 flex flex-col justify-between text-white z-10">
-                  <div className="flex justify-between items-start">
-                    <span className="bg-[#58B368] text-white px-2.5 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider">
-                      {coll.tag}
-                    </span>
-                    <span className="text-[10px] text-[#58B368] bg-white px-2 py-0.5 rounded-md font-black">
-                      {coll.count}
-                    </span>
-                  </div>
+          <div className="relative overflow-hidden w-full p-1 select-none">
+            {/* Subtle gradient overlays to fade out the edges for premium look */}
+            <div className="absolute left-0 top-0 bottom-0 w-24 bg-gradient-to-r from-[#F8FDF9] to-transparent z-10 pointer-events-none hidden md:block" />
+            <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-[#F8FDF9] to-transparent z-10 pointer-events-none hidden md:block" />
 
-                  <div className="space-y-1.5">
-                    <h4 className="text-base font-black tracking-tight leading-tight">
-                      {coll.title}
-                    </h4>
-                    <p className="text-[11px] text-slate-300 font-medium leading-relaxed line-clamp-2">
-                      {coll.desc}
-                    </p>
-                    <span className="text-[10px] font-bold text-green-300 group-hover:text-white flex items-center gap-1 transition-colors pt-1">
-                      Explore Collection <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-                    </span>
+            <div 
+              ref={collectionScrollRef}
+              onMouseDown={handleCollectionMouseDown}
+              onMouseLeave={handleCollectionMouseLeave}
+              onMouseUp={handleCollectionMouseUp}
+              onMouseMove={handleCollectionMouseMove}
+              onTouchStart={handleCollectionTouchStart}
+              onTouchEnd={handleCollectionTouchEnd}
+              className="flex gap-6 overflow-x-auto whitespace-nowrap py-6 px-4 md:px-12 scrollbar-none cursor-grab active:cursor-grabbing select-none"
+              style={{ scrollBehavior: 'auto' }}
+            >
+              {duplicatedCollections.map((coll, idx) => (
+                <div
+                  key={`${coll.id}-${idx}`}
+                  onClick={() => {
+                    if (!isCollectionDown.current) {
+                      handleCollectionSelect(coll.tag);
+                    }
+                  }}
+                  className="relative flex-shrink-0 w-[300px] h-64 rounded-3xl overflow-hidden shadow-md group cursor-pointer text-left hover:-translate-y-1 transition-all duration-300 select-none"
+                >
+                  <img 
+                    src={coll.image} 
+                    alt={coll.title} 
+                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out pointer-events-none" 
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/95 via-slate-900/40 to-slate-950/10 pointer-events-none" />
+                  
+                  <div className="absolute inset-0 p-6 flex flex-col justify-between text-white z-10 pointer-events-none">
+                    <div className="flex justify-between items-start">
+                      <span className="bg-[#58B368] text-white px-2.5 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider">
+                        {coll.tag}
+                      </span>
+                      <span className="text-[10px] text-[#58B368] bg-white px-2 py-0.5 rounded-md font-black">
+                        {coll.count}
+                      </span>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <h4 className="text-base font-black tracking-tight leading-tight whitespace-normal">
+                        {coll.title}
+                      </h4>
+                      <p className="text-[11px] text-slate-300 font-medium leading-relaxed line-clamp-2 whitespace-normal">
+                        {coll.desc}
+                      </p>
+                      <span className="text-[10px] font-bold text-green-300 group-hover:text-white flex items-center gap-1 transition-colors pt-1">
+                        Explore Collection <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </section>
 
