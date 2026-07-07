@@ -17,7 +17,6 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
-    "drizzle-kit": "^0.28.0",
     "@google/genai": "^2.4.0",
     "@tailwindcss/vite": "^4.1.14",
     "@temporalio/activity": "^1.19.0",
@@ -32,10 +31,11 @@
     "cloudinary": "^2.10.0",
     "cookie-parser": "^1.4.7",
     "dotenv": "^17.2.3",
+    "drizzle-kit": "^0.28.0",
     "drizzle-orm": "^0.36.0",
     "express": "^4.21.2",
     "express-rate-limit": "^8.5.2",
-    "helmet": "8.2.0",
+    "helmet": "^8.2.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
@@ -58,7 +58,6 @@
     "@types/react-dom": "^19.2.3",
     "autoprefixer": "^10.4.21",
     "concurrently": "^10.0.3",
-    
     "esbuild": "^0.25.0",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.21.0",
