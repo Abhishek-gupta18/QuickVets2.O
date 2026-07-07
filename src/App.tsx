@@ -255,7 +255,20 @@ export default function App() {
       // Merge with INITIAL_CLINICS to ensure we always have the frontend curated clinics
       const merged = [...fetchedClinics];
       INITIAL_CLINICS.forEach(initC => {
-        if (!merged.some(c => c.id === initC.id)) {
+        const existingIdx = merged.findIndex(c => c.id === initC.id);
+        if (existingIdx !== -1) {
+          merged[existingIdx] = {
+            ...merged[existingIdx],
+            imageUrl: initC.imageUrl,
+            description: initC.description,
+            specialists: initC.specialists,
+            veterinarianName: initC.veterinarianName || merged[existingIdx].veterinarianName,
+            yearsOfExperience: initC.yearsOfExperience || merged[existingIdx].yearsOfExperience,
+            verificationStatus: initC.verificationStatus || merged[existingIdx].verificationStatus,
+            hasEmergency: initC.hasEmergency,
+            hasHomeVisit: initC.hasHomeVisit
+          };
+        } else {
           merged.push(initC);
         }
       });

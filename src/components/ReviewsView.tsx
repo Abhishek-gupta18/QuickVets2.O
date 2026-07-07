@@ -147,6 +147,13 @@ export default function ReviewsView({
   const [isMobile, setIsMobile] = useState(false);
   const [featuredIndex, setFeaturedIndex] = useState(0);
 
+  // Infinite scrolling marquee refs for clinics
+  const clinicScrollRef = useRef<HTMLDivElement>(null);
+  const isClinicInteracting = useRef(false);
+  const isClinicDown = useRef(false);
+  const clinicStartX = useRef(0);
+  const clinicScrollLeft = useRef(0);
+
   // Swipe gesture trackers
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
@@ -293,16 +300,71 @@ export default function ReviewsView({
     return () => clearInterval(interval);
   }, [isHovered]);
 
-  // Featured Clinics Carousel Autoplay
+  // Infinite scrolling marquee auto scroll logic for Featured Clinics
   useEffect(() => {
-    const featuredClinicsCount = clinics.filter(c => c.verificationStatus === 'approved').length;
-    const limit = Math.min(featuredClinicsCount, 8);
-    if (limit === 0) return;
-    const interval = setInterval(() => {
-      setFeaturedIndex(prev => (prev + 1) % limit);
-    }, 4500);
-    return () => clearInterval(interval);
+    const container = clinicScrollRef.current;
+    if (!container) return;
+
+    let animationId: number;
+    let lastTime = performance.now();
+
+    const step = (time: number) => {
+      if (!isClinicInteracting.current && container) {
+        const elapsed = time - lastTime;
+        const speed = 0.035; // Continuous marquee speed
+        container.scrollLeft += speed * elapsed;
+
+        const singleSetWidth = container.scrollWidth / 4;
+        if (container.scrollLeft >= singleSetWidth * 2) {
+          container.scrollLeft -= singleSetWidth;
+        }
+      }
+      lastTime = time;
+      animationId = requestAnimationFrame(step);
+    };
+
+    animationId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(animationId);
   }, [clinics]);
+
+  const handleClinicMouseDown = (e: React.MouseEvent) => {
+    isClinicDown.current = true;
+    isClinicInteracting.current = true;
+    clinicStartX.current = e.pageX - (clinicScrollRef.current?.offsetLeft || 0);
+    clinicScrollLeft.current = clinicScrollRef.current?.scrollLeft || 0;
+  };
+
+  const handleClinicMouseLeave = () => {
+    isClinicDown.current = false;
+    isClinicInteracting.current = false;
+  };
+
+  const handleClinicMouseUp = () => {
+    isClinicDown.current = false;
+    setTimeout(() => {
+      if (!isClinicDown.current) {
+        isClinicInteracting.current = false;
+      }
+    }, 200);
+  };
+
+  const handleClinicMouseMove = (e: React.MouseEvent) => {
+    if (!isClinicDown.current || !clinicScrollRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - clinicScrollRef.current.offsetLeft;
+    const walk = (x - clinicStartX.current) * 1.5;
+    clinicScrollRef.current.scrollLeft = clinicScrollLeft.current - walk;
+  };
+
+  const handleClinicTouchStart = () => {
+    isClinicInteracting.current = true;
+  };
+
+  const handleClinicTouchEnd = () => {
+    setTimeout(() => {
+      isClinicInteracting.current = false;
+    }, 1000);
+  };
 
   // Keyboard navigation handler
   useEffect(() => {
@@ -457,6 +519,8 @@ export default function ReviewsView({
     .filter(c => c.verificationStatus === 'approved')
     .sort((a, b) => b.rating - a.rating)
     .slice(0, 8);
+
+  const duplicatedClinics = [...featuredClinics, ...featuredClinics, ...featuredClinics, ...featuredClinics];
 
   const handleCollectionSelect = (tag: string) => {
     if (tag === 'Emergency') {
@@ -687,24 +751,35 @@ export default function ReviewsView({
             </p>
           </div>
 
-          <div className="relative overflow-hidden w-full p-1">
+          <div className="relative overflow-hidden w-full p-1 select-none">
+            {/* Subtle gradient overlays to fade out the edges for premium look */}
+            <div className="absolute left-0 top-0 bottom-0 w-24 bg-gradient-to-r from-[#F8FDF9] to-transparent z-10 pointer-events-none hidden md:block" />
+            <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-[#F8FDF9] to-transparent z-10 pointer-events-none hidden md:block" />
+
             <div 
-              className="flex transition-transform duration-500 ease-out gap-6"
-              style={{ transform: `translateX(-${featuredIndex * (isMobile ? 88 : 100)}%)` }}
+              ref={clinicScrollRef}
+              onMouseDown={handleClinicMouseDown}
+              onMouseLeave={handleClinicMouseLeave}
+              onMouseUp={handleClinicMouseUp}
+              onMouseMove={handleClinicMouseMove}
+              onTouchStart={handleClinicTouchStart}
+              onTouchEnd={handleClinicTouchEnd}
+              className="flex gap-6 overflow-x-auto whitespace-nowrap py-6 px-4 md:px-12 scrollbar-none cursor-grab active:cursor-grabbing select-none"
+              style={{ scrollBehavior: 'auto' }}
             >
-              {featuredClinics.map((clinic) => {
+              {duplicatedClinics.map((clinic, idx) => {
                 const mockDistance = ((clinic.name.length * 7) % 4) + 1.2;
                 return (
                   <div 
-                    key={clinic.id} 
-                    className="flex-shrink-0 w-[85vw] md:w-[calc(25%-18px)] bg-white border border-slate-100 rounded-[24px] overflow-hidden shadow-[0_4px_20px_-4px_rgba(0,0,0,0.02)] hover:shadow-md hover:border-[#58B368]/20 transition-all duration-300 flex flex-col justify-between group hover:-translate-y-1"
+                    key={`${clinic.id}-${idx}`} 
+                    className="flex-shrink-0 w-[280px] h-[380px] bg-white border border-slate-100 rounded-[24px] overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.01)] hover:shadow-md hover:border-[#58B368]/20 transition-all duration-300 flex flex-col justify-between group hover:-translate-y-1 select-none"
                   >
                     <div>
                       <div className="relative h-44 overflow-hidden">
                         <img 
                           src={clinic.imageUrl || 'https://images.unsplash.com/photo-1584132967334-10e028bd69f7?auto=format&fit=crop&q=80&w=400'} 
                           alt={clinic.name} 
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 pointer-events-none" 
                         />
                         
                         {clinic.hasEmergency && (
@@ -719,10 +794,14 @@ export default function ReviewsView({
                         </div>
                       </div>
 
-                      <div className="p-5 space-y-2">
+                      <div className="p-5 space-y-2 text-left whitespace-normal">
                         <h4 
                           className="font-display font-bold text-slate-800 text-sm leading-tight hover:text-[#58B368] cursor-pointer truncate" 
-                          onClick={() => onSelectClinic(clinic)}
+                          onClick={() => {
+                            if (!isClinicDown.current) {
+                              onSelectClinic(clinic);
+                            }
+                          }}
                         >
                           {clinic.name}
                         </h4>
@@ -747,7 +826,11 @@ export default function ReviewsView({
 
                     <div className="p-5 pt-0">
                       <button 
-                        onClick={() => onSelectClinic(clinic)}
+                        onClick={() => {
+                          if (!isClinicDown.current) {
+                            onSelectClinic(clinic);
+                          }
+                        }}
                         className="w-full py-2.5 bg-slate-50 hover:bg-[#58B368] hover:text-white border border-slate-100 hover:border-[#58B368] text-slate-700 text-xs font-bold rounded-xl transition-all duration-200 cursor-pointer shadow-sm hover:shadow-[0_8px_20px_rgba(88,179,104,0.25)]"
                       >
                         Quick Visit
@@ -756,19 +839,6 @@ export default function ReviewsView({
                   </div>
                 );
               })}
-            </div>
-            
-            {/* Carousel Indicators */}
-            <div className="flex justify-center gap-1.5 mt-5">
-              {Array.from({ length: Math.ceil(featuredClinics.length / (isMobile ? 1 : 4)) }).map((_, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setFeaturedIndex(idx)}
-                  className={`h-1.5 rounded-full transition-all duration-300 ${
-                    idx === featuredIndex ? 'w-6 bg-[#58B368]' : 'w-1.5 bg-slate-200'
-                  }`}
-                />
-              ))}
             </div>
           </div>
         </section>
