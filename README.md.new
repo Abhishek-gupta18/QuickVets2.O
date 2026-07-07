@@ -1,0 +1,411 @@
+<div align="center">
+  <img width="1000" alt="QuickVet Preview" src="preview.jpg" />
+  <h1>QuickVet</h1>
+  <p><strong>Find nearby veterinarians, book appointments, and request emergency pet care — all in one platform.</strong></p>
+
+  ![Status](https://img.shields.io/badge/Status-Active%20Development-brightgreen)
+  ![Version](https://img.shields.io/badge/Version-1.0.0-blue)
+  ![License](https://img.shields.io/badge/License-Private-lightgrey)
+</div>
+
+---
+
+# QuickVet
+
+QuickVet is a pet healthcare marketplace and booking platform:
+- **Browse clinics nearby** (geo/location-assisted listing)
+- **Book appointments** for clinic visits / home visits
+- **Request emergency care (SOS)**
+- **Manage role-based workflows** for pet owners, veterinarians, and admins
+- **Track vaccination appointments + records** (Temporal-backed workflows if enabled)
+- **Submit clinic verification documents** (Cloudinary-backed)
+
+This repository is deployed using a **split architecture**:
+- **Frontend:** Vercel
+- **Backend/API:** Render
+- **Database:** Supabase PostgreSQL (compatible with `DATABASE_URL`)
+
+---
+
+## Project Status
+
+| Area | Status | Notes |
+|------|--------|-------|
+| Frontend (React SPA) | ✅ Complete | All views, modals, dashboards functional |
+| Backend (Express API) | ✅ Complete | REST API + JWT auth + role guards |
+| Database (PostgreSQL) | ✅ Complete | Drizzle ORM schema + migrations |
+| Authentication | ✅ Complete | Signup/login/password reset + Google OAuth + roles |
+| Booking System | ✅ Complete | Appointment create + status workflow |
+| Emergency Alerts | ✅ Complete | SOS request + clinic acceptance workflow |
+| Interactive Map | ✅ Complete | Leaflet map with clinic markers |
+| Clinic Reviews | ✅ Complete | Star ratings with dynamic averages |
+| Vet Dashboard | ✅ Complete | Manage clinic bookings, emergencies, analytics |
+| User Dashboard | ✅ Complete | Pets, favorites, booking history |
+| Vaccinations | ✅ Complete | Appointment scheduling + Temporal reminders/workflow (optional) |
+| Deployment | ✅ Ready | Vercel + Render + Supabase |
+
+---
+
+## Architecture Overview
+
+```text
+┌─────────────────────────────────────────────────────────────────────┐
+│                          CLIENT (Browser)                            │
+│                                                                     │
+│  React SPA (Vite + Tailwind)                                       │
+│  - Uses fetch() with authenticated requests                       │
+│  - JWT stored as httpOnly cookie (server-set)                     │
+└───────────────────────────────┬─────────────────────────────────────┘
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                       SERVER (Express.js)                           │
+│                                                                     │
+│  - Helmet (security headers)                                       │
+│  - Rate limiting for auth endpoints                                │
+│  - CORS allow-list for trusted frontend origins                     │
+│  - JWT auth + role-based access control                          │
+│  - PostgreSQL via Drizzle ORM + `pg` pool                         │
+│  - Cloudinary document storage (verification docs)              │
+│  - Temporal integration for vaccination workflows (optional)      │
+└───────────────────────────────┬─────────────────────────────────────┘
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                      PostgreSQL / Supabase                          │
+│  Tables: users, vet_clinics, pets, favorite_clinics, clinic_reviews, │
+│          bookings, emergency_requests, vaccination_* (in schema)     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Key Concepts (How the app works)
+
+### 1) Authentication & authorization (JWT)
+- The backend signs **HS256 JWTs** and stores them as an **httpOnly cookie**.
+- Roles supported (based on existing API + UI expectations):
+  - `pet_owner`
+  - `veterinarian`
+  - `admin`
+- Authorization happens in two layers:
+  1. `authenticateToken` middleware validates JWT.
+  2. `requireRole()` middleware restricts vet-only / admin-only routes.
+
+### 2) Tenant data isolation
+- **Pet-owner scoped** resources (bookings/emergencies) are filtered by `petOwnerEmail` / `pet_owner_id`.
+- **Veterinarian scoped** resources are filtered by `clinicId` / `clinic_id`.
+- **Admin** can access broader datasets.
+
+### 3) Emergency flow (SOS)
+- Users can create emergency requests (authenticated users and guests use different statuses).
+- Veterinarians can update status for emergencies, including setting `acceptedByClinicId`.
+
+### 4) Vaccination scheduling (Temporal optional)
+- Vaccination appointments are created in PostgreSQL.
+- If Temporal is configured and enabled, the backend starts a vaccination workflow.
+- Workflow logic gracefully degrades when Temporal client is unavailable.
+
+---
+
+## Tech Stack
+
+### Frontend
+- **React 19** (UI)
+- **Vite 6** (SPA build)
+- **Tailwind CSS 4** (styling)
+- **Leaflet** (clinic map)
+
+### Backend
+- **Express 4** (API server)
+- **Drizzle ORM** (typed queries + migrations)
+- **pg** (Postgres connection pooling)
+- **bcryptjs** (password hashing)
+- **JWT via Node `crypto`** (HS256 sign/verify)
+- **Cloudinary** (verification documents)
+- **Temporal** (vaccination workflows, optional)
+
+### Data
+- **Supabase PostgreSQL** (`DATABASE_URL` compatible)
+
+---
+
+## Database Schema
+
+Core tables (as used by the existing API):
+- `users`
+- `vet_clinics`
+- `pets`
+- `favorite_clinics`
+- `clinic_reviews`
+- `bookings`
+- `emergency_requests`
+- Vaccination-related tables:
+  - `vaccination_appointments`
+  - `vaccination_records`
+
+> Note: Drizzle schema is defined in `src/server/schema.ts`.
+
+---
+
+## API Endpoints
+
+### Public (no auth required)
+| Method | Endpoint | Purpose |
+|---|---|---|
+| POST | `/api/auth/google/start` | Start Google OAuth (server-side state cookie) |
+| GET | `/api/auth/google/callback` | Google OAuth callback (sets auth cookie) |
+| POST | `/api/auth/signup` | Create user account |
+| POST | `/api/auth/login` | Login and set auth cookie |
+| POST | `/api/auth/logout` | Clear auth cookie |
+| POST | `/api/auth/forgot-password` | Initiate password reset (simulated link/logging) |
+| POST | `/api/auth/verify-reset-token` | Verify reset token validity |
+| POST | `/api/auth/reset-password` | Complete password reset |
+| GET | `/api/clinics` | List clinics |
+| GET | `/api/clinics/:id/reviews` | Get clinic reviews |
+
+### Authenticated (JWT required)
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/api/user/me` | Get current user profile |
+| POST | `/api/user/pets` | Add pet |
+| POST | `/api/user/favorites` | Toggle favorite clinic |
+| POST | `/api/clinics` | Create clinic verification/profile (veterinarian/admin) |
+| POST | `/api/clinics/:id/reviews` | Submit clinic review |
+| GET | `/api/bookings` | List bookings (tenant-scoped) |
+| POST | `/api/bookings` | Create booking |
+| POST | `/api/bookings/:id/status` | Update booking status (veterinarian) |
+| GET | `/api/emergency` | List emergencies (tenant-scoped) |
+| POST | `/api/emergency` | Create emergency request (authenticated/guest) |
+| POST | `/api/emergency/:id/status` | Update emergency status (veterinarian) |
+
+### Documents (Cloudinary)
+- `POST /api/documents/upload` (veterinarian/admin, multipart)
+- `DELETE /api/documents/:publicId`
+- `GET /api/documents/:publicId/signed-url`
+- `GET /api/documents/:publicId/download`
+
+### Analytics
+- `GET /api/analytics/admin` (admin)
+- `GET /api/analytics/vet` (veterinarian)
+- `GET /api/analytics/user` (pet_owner)
+
+---
+
+## Project Structure
+
+```text
+QuickVet/
+├── server.ts                          # Express entry (API + Vite middleware)
+├── vite.config.ts                     # Vite config
+├── drizzle.config.ts                 # Drizzle migration config
+├── package.json
+├── tsconfig.json
+├── index.html
+│
+├── src/
+│   ├── App.tsx
+│   ├── main.tsx
+│   ├── index.css
+│   ├── data.ts
+│   ├── types.ts
+│   │
+│   ├── components/
+│   │   ├── Navbar.tsx
+│   │   ├── VetRegistrationModal.tsx
+│   │   ├── EmergencyWidget.tsx
+│   │   └── ...
+│   │
+│   └── server/
+│       ├── db.ts                      # pg pool + Drizzle
+│       ├── schema.ts                  # Drizzle schema
+│       ├── jwt.ts                     # HS256 JWT helpers
+│       ├── middleware.ts              # auth + role guards
+│       ├── analytics.ts              # dashboard analytics queries
+│       └── temporal/                # vaccination workflow integration
+│
+└── public/ assets/ preview.jpg
+```
+
+---
+
+## Getting Started (Local Development)
+
+### Prerequisites
+- **Node.js 18+**
+- **PostgreSQL 14+** (local or cloud)
+
+### 1) Clone
+```bash
+git clone https://github.com/Abhishek-gupta18/QuickVet.git
+cd QuickVet
+```
+
+### 2) Install dependencies
+```bash
+npm install
+```
+
+### 3) Environment
+Create a `.env` file (template exists):
+- Copy `.env.example` → `.env`
+
+Set at minimum:
+- `DATABASE_URL` (Supabase/Postgres connection string)
+- `JWT_SECRET` (random strong secret)
+- `FRONTEND_URL` (where the frontend is hosted)
+
+Other optional production features:
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` (Google OAuth)
+- `GOOGLE_OAUTH_REDIRECT_URI` (optional override)
+- `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` (documents)
+
+> For local dev, you can set `FRONTEND_URL` to `http://localhost:5173`.
+
+### 4) Database setup
+```bash
+npm run db:push
+npm run db:seed
+```
+
+### 5) Run dev server
+```bash
+npm run dev
+```
+
+The app runs on **port 3000** during development (Express + Vite middleware).
+
+---
+
+## Deployment (Vercel + Render + Supabase)
+
+### Overview
+You deploy in three parts:
+
+1) **Frontend (Vercel)**
+- Build is static.
+- Configure environment variable `VITE_API_URL` to your Render backend URL.
+
+2) **Backend (Render)**
+- Deploy `npm start` output from production build:
+  - `dist/server.cjs`
+- Configure env vars:
+  - `NODE_ENV=production`
+  - `DATABASE_URL` (Supabase)
+  - `JWT_SECRET`
+  - `FRONTEND_URL` (Vercel URL)
+  - `BACKEND_URL` (recommended; used for OAuth redirects)
+
+3) **Database (Supabase PostgreSQL)**
+- Use Supabase connection string for `DATABASE_URL`.
+- Run migrations with Drizzle.
+
+---
+
+## Vercel (Frontend) - Step-by-step
+
+1. Create a Vercel project (connect Git repo).
+2. Ensure build command is:
+   - `npm run build`
+3. Ensure output is the default Vite output (Vercel will infer `dist/`).
+4. Set environment variables in Vercel:
+   - `VITE_API_URL` = `https://<your-render-backend>.onrender.com`
+5. (If your app uses auth cookies) also set the backend CORS allow-list:
+   - This is controlled by backend via `FRONTEND_URL`.
+
+---
+
+## Render (Backend) - Step-by-step
+
+1. Create a Render Web Service.
+2. Point Render to this repo.
+3. Set build/command so Render runs production server:
+   - Build: `npm run build`
+   - Start: `npm start`
+
+4. Configure environment variables in Render:
+
+**Required**
+- `DATABASE_URL` = Supabase connection string
+- `JWT_SECRET` = strong random secret
+- `FRONTEND_URL` = your Vercel frontend URL
+- `BACKEND_URL` = Render backend base URL (used for OAuth fallback)
+
+**Optional**
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+- `GOOGLE_OAUTH_REDIRECT_URI`
+- `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
+
+5. After deploying, seed/migrate:
+- Run:
+  - `npm run db:migrate` (or `db:push` for dev)
+  - `npm run db:seed` (optional)
+
+---
+
+## Supabase (Database) - Step-by-step
+
+1. Create a Supabase project.
+2. Create a PostgreSQL database (Supabase provides one).
+3. Get your `DATABASE_URL` from Supabase.
+4. Deploy schema with Drizzle:
+   - locally: `npm run db:push`
+   - or in CI/Render job: `npm run db:migrate`
+
+---
+
+## Cloudinary (Documents)
+
+If you are using vet clinic verification documents:
+1. Create a Cloudinary account.
+2. Add `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`.
+3. The backend uploads into a folder structure under the `quickvet` root (based on vet id).
+
+---
+
+## Temporal (Vaccination Workflows)
+
+Temporal is integrated, but the backend will continue to work even if Temporal is not configured.
+- Start Temporal workers using:
+  - `npm run temporal:worker`
+- Start Temporal server locally (dev script exists in `scripts/`).
+
+---
+
+## Security Notes
+
+- Auth endpoints are protected with **rate limiting**.
+- JWT is stored in an **httpOnly cookie**.
+- Backend uses **CORS allow-list**. Update `FRONTEND_URL` and backend environment so your Vercel domain is accepted.
+- Emergency updates are role-restricted (`veterinarian`).
+
+---
+
+## Available Scripts
+
+| Script | Description |
+|--------|-------------|
+| `npm run dev` | Start development server (Express + Vite middleware) |
+| `npm run build` | Build for production (Vite + bundled server) |
+| `npm start` | Run production server |
+| `npm run db:generate` | Generate Drizzle migration files |
+| `npm run db:migrate` | Run pending migrations |
+| `npm run db:push` | Push schema directly (dev) |
+| `npm run db:seed` | Seed database with sample data |
+| `npm run db:studio` | Open Drizzle Studio |
+
+---
+
+## Contributing
+
+1. Fork the repo
+2. Create feature branch
+3. Commit changes
+4. Open Pull Request
+
+---
+
+## License
+
+This project is licensed under the MIT License — see the `LICENSE` file for details.
+

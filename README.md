@@ -5,12 +5,25 @@
 
   ![Status](https://img.shields.io/badge/Status-Active%20Development-brightgreen)
   ![Version](https://img.shields.io/badge/Version-1.0.0-blue)
-<<<<<<< docs/readme-and-license
-  ![License](https://img.shields.io/badge/License-MIT-yellow)
-=======
   ![License](https://img.shields.io/badge/License-Private-lightgrey)
->>>>>>> main
 </div>
+
+---
+
+# QuickVet
+
+QuickVet is a pet healthcare marketplace and booking platform:
+- **Browse clinics nearby** (geo/location-assisted listing)
+- **Book appointments** for clinic visits / home visits
+- **Request emergency care (SOS)**
+- **Role-based workflows** for pet owners, veterinarians, and admins
+- **Vaccination appointment scheduling + records** (Temporal-backed workflows if enabled)
+- **Clinic verification document upload** (Cloudinary-backed)
+
+This repository is deployed using a **split architecture**:
+- **Frontend:** Vercel
+- **Backend/API:** Render
+- **Database:** Supabase PostgreSQL (compatible with `DATABASE_URL`)
 
 ---
 
@@ -18,580 +31,289 @@
 
 | Area | Status | Notes |
 |------|--------|-------|
-| Frontend (React SPA) | :white_check_mark: Complete | All views, modals, and dashboards functional |
-| Backend (Express API) | :white_check_mark: Complete | Full REST API with JWT auth |
-| Database (PostgreSQL) | :white_check_mark: Complete | 7-table schema with Drizzle ORM |
-| Authentication | :white_check_mark: Complete | Signup, login, password reset, role-based access |
-| Booking System | :white_check_mark: Complete | Clinic visits & home visits with status management |
-| Emergency Alerts | :white_check_mark: Complete | Real-time emergency request/response flow |
-| Interactive Map | :white_check_mark: Complete | Leaflet-based with geolocation & routing |
-| Clinic Reviews | :white_check_mark: Complete | Star ratings with dynamic averages |
-| Vet Dashboard | :white_check_mark: Complete | Manage bookings & emergencies |
-| User Dashboard | :white_check_mark: Complete | Pet profiles, favorites, booking history |
-| AI Symptom Checker | :construction: Planned | Gemini API integration (key configured) |
-| Deployment | :white_check_mark: Ready | Vercel (frontend) + Render (backend) split |
+| Frontend (React SPA) | ✅ Complete | All views, modals, dashboards functional |
+| Backend (Express API) | ✅ Complete | REST API + JWT auth + role guards |
+| Database (PostgreSQL) | ✅ Complete | Drizzle ORM schema + relations |
+| Authentication | ✅ Complete | Signup/login/password reset/roles + Google OAuth |
+| Booking System | ✅ Complete | Clinic visits + home visits + status |
+| Emergency Alerts | ✅ Complete | Emergency request + clinic acceptance workflow |
+| Interactive Map | ✅ Complete | Leaflet map with clinic markers |
+| Clinic Reviews | ✅ Complete | Star ratings + average rating calculation |
+| Vet Dashboard | ✅ Complete | Manage bookings & emergencies + analytics |
+| User Dashboard | ✅ Complete | Pets, favorites, appointment & emergency history |
+| Vaccinations | ✅ Complete | Appointment create + Temporal workflows optional |
+| Deployment | ✅ Ready | Vercel (frontend) + Render (backend) + Supabase (DB) |
 
 ---
 
 ## Architecture Overview
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────────┐
 │                          CLIENT (Browser)                            │
 │                                                                     │
-│  ┌───────────────────────────────────────────────────────────────┐  │
-│  │              React 19 SPA (Vite + Tailwind CSS 4)             │  │
-│  │                                                               │  │
-│  │  ┌─────────┐ ┌──────────┐ ┌────────────┐ ┌───────────────┐  │  │
-│  │  │  Home   │ │ Find Vets│ │ Emergency  │ │  Dashboards   │  │  │
-│  │  │  Hero   │ │ Map View │ │  Widget    │ │ (User / Vet)  │  │  │
-│  │  └─────────┘ └──────────┘ └────────────┘ └───────────────┘  │  │
-│  │                                                               │  │
-│  │  ┌─────────────────────────────────────────────────────────┐  │  │
-│  │  │  Shared: AuthModal, BookingModal, ReviewsModal,         │  │  │
-│  │  │          VetRegistrationModal, Navbar, Footer            │  │  │
-│  │  └─────────────────────────────────────────────────────────┘  │  │
-│  └───────────────────────────────────────────────────────────────┘  │
-│                              │                                       │
-│                     fetch() + Bearer JWT                             │
-└──────────────────────────────┼──────────────────────────────────────┘
-                               │
-                               ▼
+│  React SPA (Vite + Tailwind)                                       │
+│  - fetch() calls backend API                                      │
+│  - Auth cookie is managed by backend (httpOnly)                  │
+└───────────────────────────────┬─────────────────────────────────────┘
+                                │
+                                ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│                       SERVER (Express.js)                            │
+│                       SERVER (Express.js)                           │
 │                                                                     │
-│  ┌────────────────┐  ┌───────────────┐  ┌───────────────────────┐  │
-│  │  CORS + JSON   │  │  JWT Auth     │  │  Role-Based Access    │  │
-│  │  Middleware     │  │  Middleware   │  │  Control Middleware   │  │
-│  └────────────────┘  └───────────────┘  └───────────────────────┘  │
-│                                                                     │
-│  ┌───────────────────────────────────────────────────────────────┐  │
-│  │                     REST API Routes                            │  │
-│  │                                                               │  │
-│  │  PUBLIC:        /api/auth/*        (signup, login, reset)     │  │
-│  │                 /api/clinics        (list all clinics)        │  │
-│  │                 /api/clinics/:id/reviews  (read reviews)      │  │
-│  │                                                               │  │
-│  │  PROTECTED:     /api/bookings      (CRUD, tenant-isolated)   │  │
-│  │  (JWT)          /api/emergency     (CRUD, role-scoped)       │  │
-│  │                 /api/user/*        (profile, pets, favorites) │  │
-│  │                 /api/clinics       (POST - create clinic)     │  │
-│  │                                                               │  │
-│  │  VET-ONLY:      /api/bookings/:id/status                     │  │
-│  │                 /api/emergency/:id/status                     │  │
-│  └───────────────────────────────────────────────────────────────┘  │
-│                              │                                       │
-│                    Drizzle ORM Queries                               │
-└──────────────────────────────┼──────────────────────────────────────┘
-                               │
-                               ▼
+│  - Helmet security headers                                         │
+│  - CORS allow-list (frontend origins)                             │
+│  - Auth: JWT cookie + role-based access control                  │
+│  - DB: Drizzle ORM on top of pg pool                             │
+│  - Documents: Cloudinary (verification uploads)                  │
+│  - Vaccinations: Temporal integration (graceful fallback)       │
+└───────────────────────────────┬─────────────────────────────────────┘
+                                │
+                                ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│                      PostgreSQL Database                             │
-│                                                                     │
-│  ┌────────────┐ ┌───────┐ ┌──────┐ ┌─────────────────────────────┐ │
-│  │ vet_clinics│ │ users │ │ pets │ │ favorite_clinics (join)     │ │
-│  └────────────┘ └───────┘ └──────┘ └─────────────────────────────┘ │
-│  ┌────────────────┐ ┌──────────┐ ┌─────────────────────────────┐   │
-│  │ clinic_reviews │ │ bookings │ │ emergency_requests          │   │
-│  └────────────────┘ └──────────┘ └─────────────────────────────┘   │
+│                   PostgreSQL / Supabase                              │
+│  Tables: users, vet_clinics, pets, favorite_clinics,              │
+│          clinic_reviews, bookings, emergency_requests,            │
+│          vaccination_appointments, vaccination_records            │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
-<<<<<<< docs/readme-and-license
+
+## Key Concepts
+
+### 1) Authentication & authorization
+- Backend signs **HS256 JWT** and stores it as a **secure `httpOnly` cookie** (`quickvet_auth`).
+- Supported roles in API/UI:
+  - `pet_owner`
+  - `veterinarian`
+  - `admin`
+- Authorization is enforced via middleware:
+  - `authenticateToken` validates JWT cookie
+  - `requireRole(...)` restricts vet-only/admin-only routes
+
+### 2) Tenant isolation
+To prevent cross-user data leakage:
+- **Pet owners** can only access their own bookings & emergencies (filtered by `petOwnerEmail` / `pet_owner_id`).
+- **Veterinarians** can access clinic-scoped bookings & emergencies (filtered by `clinicId`).
+- **Admins** can access broader datasets.
+
+### 3) Emergency (SOS) flow
+- A pet owner (or guest via app UI) creates an emergency request.
+- Veterinarians can update the emergency status and set `acceptedByClinicId`.
+
+### 4) Vaccinations (Temporal optional)
+- Backend creates vaccination appointments in PostgreSQL.
+- If Temporal client is available/configured, it starts workflows for reminders.
+- If Temporal is not available, the app still works (graceful degradation).
+
+---
 
 ## Tech Stack
 
 ### Frontend
-| Technology | Purpose |
-|-----------|---------|
-| **React 19** | UI component library |
-| **Vite 6** | Build tool & dev server (middleware mode) |
-| **Tailwind CSS 4** | Utility-first styling |
-| **Framer Motion** | Page transitions & animations |
-| **Leaflet** | Interactive maps with markers & routing |
-| **Lucide React** | Icon library |
-| **canvas-confetti** | Celebration animations |
+- **React 19**
+- **Vite 6**
+- **Tailwind CSS 4**
+- **Leaflet**
 
 ### Backend
-| Technology | Purpose |
-|-----------|---------|
-| **Express 4** | HTTP server & REST API |
-| **Drizzle ORM** | Type-safe PostgreSQL queries & migrations |
-| **bcryptjs** | Password hashing (10 salt rounds) |
-| **Custom JWT (HS256)** | Token-based authentication (no external lib) |
-| **dotenv** | Environment configuration |
+- **Express 4**
+- **Drizzle ORM**
+- **pg** (PostgreSQL pool)
+- **bcryptjs**
+- **JWT (HS256) using Node `crypto`**
+- **Cloudinary** (documents)
+- **Temporal** (workflows; optional runtime dependency)
 
 ### Database
-| Technology | Purpose |
-|-----------|---------|
-| **PostgreSQL** | Primary relational database |
-| **Drizzle Kit** | Schema migrations & studio |
-| **pg (node-postgres)** | Connection pooling (max 20 connections) |
-
-### DevOps / Tooling
-| Technology | Purpose |
-|-----------|---------|
-| **TypeScript 5.8** | End-to-end type safety |
-| **tsx** | Development server runner |
-| **esbuild** | Production server bundling |
-| **Drizzle Studio** | Database GUI for development |
+- **Supabase PostgreSQL** (use `DATABASE_URL`)
 
 ---
 
 ## Database Schema
 
-7 tables with full referential integrity:
+Core tables:
+- `users`
+- `vet_clinics`
+- `pets`
+- `favorite_clinics`
+- `clinic_reviews`
+- `bookings`
+- `emergency_requests`
 
-```
-┌──────────────┐       ┌──────────────────┐       ┌─────────────┐
-│  vet_clinics │◄──────│ favorite_clinics  │──────►│    users    │
-│              │       │   (join table)    │       │             │
-│  id (PK)     │       └──────────────────┘       │  id (PK)    │
-│  name        │                                   │  email (UQ) │
-│  address     │◄──┐                               │  role       │
-│  area        │   │                               │  clinicId   │──┐
-│  latitude    │   │   ┌──────────────────┐       └─────────────┘  │
-│  longitude   │   ├───│  clinic_reviews   │              │         │
-│  rating      │   │   └──────────────────┘              │         │
-│  specialists │   │                                      ▼         │
-│  services    │   │   ┌──────────────────┐       ┌─────────────┐  │
-│  hasEmergency│   ├───│    bookings      │──────►│    pets     │  │
-│  hasHomeVisit│   │   └──────────────────┘       └─────────────┘  │
-└──────────────┘   │                                                │
-        ▲          │   ┌──────────────────┐                        │
-        │          └───│emergency_requests │                        │
-        │              └──────────────────┘                        │
-        └──────────────────────────────────────────────────────────┘
-```
+Vaccination tables:
+- `vaccination_appointments`
+- `vaccination_records`
 
-| Table | Records | Description |
-|-------|---------|-------------|
-| `vet_clinics` | Clinic profiles | Vet clinic directory with geo-coords, services, and ratings |
-| `users` | User accounts | Pet owners & veterinarians with role-based access |
-| `pets` | Pet profiles | Owner's pets with breed, age, weight, medical history |
-| `favorite_clinics` | M:N join | Users can favorite/bookmark clinics |
-| `clinic_reviews` | Star reviews | 1-5 star ratings with text feedback per clinic |
-| `bookings` | Appointments | Clinic visits & home visits with status tracking |
-| `emergency_requests` | SOS alerts | Emergency requests with location & acceptance workflow |
+Schema and relations are defined in `src/server/schema.ts` (Drizzle).
 
 ---
 
-## API Routes
+## API Endpoints
 
-### Public (No Auth Required)
+### Public (No auth required)
+| Method | Endpoint | Purpose |
+|---|---|---|
+| POST | `/api/auth/google/start` | Start Google OAuth (server-side cookie state) |
+| GET | `/api/auth/google/callback` | OAuth callback (sets auth cookie) |
+| POST | `/api/auth/signup` | Create user |
+| POST | `/api/auth/login` | Login (sets auth cookie) |
+| POST | `/api/auth/logout` | Logout (clears auth cookie) |
+| POST | `/api/auth/forgot-password` | Initiate reset (simulated link/log) |
+| POST | `/api/auth/verify-reset-token` | Validate reset token |
+| POST | `/api/auth/reset-password` | Complete password reset |
+| GET | `/api/clinics` | List clinics |
+| GET | `/api/clinics/:id/reviews` | Read clinic reviews |
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/auth/signup` | Create a new user account |
-| `POST` | `/api/auth/login` | Authenticate and receive JWT |
-| `POST` | `/api/auth/reset-password` | Reset user password |
-| `GET` | `/api/clinics` | List all registered clinics |
-| `GET` | `/api/clinics/:id/reviews` | Get reviews for a clinic |
+### Authenticated (JWT cookie required)
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/api/user/me` | Current user profile + pets + favorites |
+| POST | `/api/user/pets` | Add a pet |
+| POST | `/api/user/favorites` | Toggle clinic favorite |
+| POST | `/api/clinics` | Create clinic verification profile |
+| POST | `/api/clinics/:id/verification` | Update clinic verification (admin) |
+| POST | `/api/clinics/:id/reviews` | Submit clinic review |
+| GET | `/api/bookings` | List bookings (tenant-scoped) |
+| POST | `/api/bookings` | Create booking |
+| POST | `/api/bookings/:id/status` | Update booking status (veterinarian) |
+| GET | `/api/emergency` | List emergencies (tenant-scoped) |
+| POST | `/api/emergency` | Create emergency request |
+| POST | `/api/emergency/:id/status` | Update emergency status (veterinarian) |
 
-### Protected (JWT Required)
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/user/me` | Get current user profile |
-| `POST` | `/api/user/pets` | Add a pet to profile |
-| `POST` | `/api/user/favorites` | Toggle clinic favorite |
-| `POST` | `/api/clinics` | Register a new clinic |
-| `POST` | `/api/clinics/:id/reviews` | Submit a clinic review |
-| `GET` | `/api/bookings` | Get user/clinic bookings |
-| `POST` | `/api/bookings` | Create a new booking |
-| `GET` | `/api/emergency` | Get emergency requests |
-| `POST` | `/api/emergency` | Submit emergency request |
-
-### Veterinarian Only (JWT + Role Guard)
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/bookings/:id/status` | Update booking status |
-| `POST` | `/api/emergency/:id/status` | Accept/update emergency |
-
----
-
-## Project Structure
-
-```
-QuickVet/
-├── server.ts                    # Express server entry point (API + Vite middleware)
-├── vite.config.ts               # Vite build config (React + Tailwind)
-├── drizzle.config.ts            # Drizzle Kit migration config
-├── package.json                 # Dependencies & scripts
-├── tsconfig.json                # TypeScript configuration
-├── index.html                   # SPA entry HTML
-├── .env.example                 # Environment variable template
-├── LICENSE                      # MIT License
-│
-├── src/
-│   ├── App.tsx                  # Main app component (routing, state, views)
-│   ├── main.tsx                 # React DOM entry
-│   ├── index.css                # Global styles + Tailwind imports
-│   ├── types.ts                 # Shared TypeScript interfaces
-│   ├── data.ts                  # Utility functions (Haversine distance, etc.)
-│   │
-│   ├── components/
-│   │   ├── Navbar.tsx           # Top navigation with role-aware links
-│   │   ├── Hero.tsx             # Landing page hero section
-│   │   ├── InteractiveMap.tsx   # Leaflet map with clinic markers
-│   │   ├── ClinicCard.tsx       # Clinic listing card component
-│   │   ├── BookingModal.tsx     # Appointment booking form
-│   │   ├── ReviewsModal.tsx     # Clinic reviews viewer/writer
-│   │   ├── EmergencyWidget.tsx  # Emergency SOS submission form
-│   │   ├── AuthModal.tsx        # Login/signup modal
-│   │   ├── UserDashboard.tsx    # Pet owner dashboard
-│   │   ├── VetDashboard.tsx     # Veterinarian management dashboard
-│   │   ├── VetRegistrationModal.tsx  # New clinic registration form
-│   │   └── Footer.tsx           # Page footer
-│   │
-│   └── server/
-│       ├── db.ts                # PostgreSQL pool + Drizzle instance
-│       ├── schema.ts            # Drizzle ORM table definitions & relations
-│       ├── jwt.ts               # Custom HS256 JWT sign/verify (zero-dep)
-│       ├── middleware.ts        # Auth & role-guard Express middleware
-│       └── seed.ts              # Database seeding script
-│
-├── public/
-│   ├── favicon.png
-│   └── apple-touch-icon.png
-│
-└── assets/
-    └── preview.svg
-```
+### Cloudinary documents
+| Method | Endpoint | Purpose |
+|---|---|---|
+| POST | `/api/documents/upload` | Upload verification docs (vets/admin) |
+| DELETE | `/api/documents/:publicId` | Delete doc from Cloudinary |
+| GET | `/api/documents/:publicId/signed-url` | Admin signed URL for viewing |
+| GET | `/api/documents/:publicId/download` | Admin download redirect |
 
 ---
 
-## Getting Started
+## Local Development
 
 ### Prerequisites
+- **Node.js 18+**
+- **PostgreSQL 14+**
 
-- **Node.js** 18+ (recommended)
-- **PostgreSQL** 14+ (local or cloud — Railway, Neon, Supabase, etc.)
-
-### 1. Clone the repository
-
+### 1) Clone
 ```bash
 git clone https://github.com/Abhishek-gupta18/QuickVet.git
 cd QuickVet
 ```
 
-=======
-
-## Tech Stack
-
-### Frontend
-| Technology | Purpose |
-|-----------|---------|
-| **React 19** | UI component library |
-| **Vite 6** | Build tool & dev server (middleware mode) |
-| **Tailwind CSS 4** | Utility-first styling |
-| **Framer Motion** | Page transitions & animations |
-| **Leaflet** | Interactive maps with markers & routing |
-| **Lucide React** | Icon library |
-| **canvas-confetti** | Celebration animations |
-
-### Backend
-| Technology | Purpose |
-|-----------|---------|
-| **Express 4** | HTTP server & REST API |
-| **Drizzle ORM** | Type-safe PostgreSQL queries & migrations |
-| **bcryptjs** | Password hashing (10 salt rounds) |
-| **Custom JWT (HS256)** | Token-based authentication (no external lib) |
-| **dotenv** | Environment configuration |
-
-### Database
-| Technology | Purpose |
-|-----------|---------|
-| **PostgreSQL** | Primary relational database |
-| **Drizzle Kit** | Schema migrations & studio |
-| **pg (node-postgres)** | Connection pooling (max 20 connections) |
-
-### DevOps / Tooling
-| Technology | Purpose |
-|-----------|---------|
-| **TypeScript 5.8** | End-to-end type safety |
-| **tsx** | Development server runner |
-| **esbuild** | Production server bundling |
-| **Drizzle Studio** | Database GUI for development |
-
----
-
-## Database Schema
-
-7 tables with full referential integrity:
-
-```
-┌──────────────┐       ┌──────────────────┐       ┌─────────────┐
-│  vet_clinics │◄──────│ favorite_clinics  │──────►│    users    │
-│              │       │   (join table)    │       │             │
-│  id (PK)     │       └──────────────────┘       │  id (PK)    │
-│  name        │                                   │  email (UQ) │
-│  address     │◄──┐                               │  role       │
-│  area        │   │                               │  clinicId   │──┐
-│  latitude    │   │   ┌──────────────────┐       └─────────────┘  │
-│  longitude   │   ├───│  clinic_reviews   │              │         │
-│  rating      │   │   └──────────────────┘              │         │
-│  specialists │   │                                      ▼         │
-│  services    │   │   ┌──────────────────┐       ┌─────────────┐  │
-│  hasEmergency│   ├───│    bookings      │──────►│    pets     │  │
-│  hasHomeVisit│   │   └──────────────────┘       └─────────────┘  │
-└──────────────┘   │                                                │
-        ▲          │   ┌──────────────────┐                        │
-        │          └───│emergency_requests │                        │
-        │              └──────────────────┘                        │
-        └──────────────────────────────────────────────────────────┘
-```
-
-| Table | Records | Description |
-|-------|---------|-------------|
-| `vet_clinics` | Clinic profiles | Vet clinic directory with geo-coords, services, and ratings |
-| `users` | User accounts | Pet owners & veterinarians with role-based access |
-| `pets` | Pet profiles | Owner's pets with breed, age, weight, medical history |
-| `favorite_clinics` | M:N join | Users can favorite/bookmark clinics |
-| `clinic_reviews` | Star reviews | 1-5 star ratings with text feedback per clinic |
-| `bookings` | Appointments | Clinic visits & home visits with status tracking |
-| `emergency_requests` | SOS alerts | Emergency requests with location & acceptance workflow |
-
----
-
-## API Routes
-
-### Public (No Auth Required)
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/auth/signup` | Create a new user account |
-| `POST` | `/api/auth/login` | Authenticate and receive JWT |
-| `POST` | `/api/auth/reset-password` | Reset user password |
-| `GET` | `/api/clinics` | List all registered clinics |
-| `GET` | `/api/clinics/:id/reviews` | Get reviews for a clinic |
-
-### Protected (JWT Required)
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/user/me` | Get current user profile |
-| `POST` | `/api/user/pets` | Add a pet to profile |
-| `POST` | `/api/user/favorites` | Toggle clinic favorite |
-| `POST` | `/api/clinics` | Register a new clinic |
-| `POST` | `/api/clinics/:id/reviews` | Submit a clinic review |
-| `GET` | `/api/bookings` | Get user/clinic bookings |
-| `POST` | `/api/bookings` | Create a new booking |
-| `GET` | `/api/emergency` | Get emergency requests |
-| `POST` | `/api/emergency` | Submit emergency request |
-
-### Veterinarian Only (JWT + Role Guard)
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/bookings/:id/status` | Update booking status |
-| `POST` | `/api/emergency/:id/status` | Accept/update emergency |
-
----
-
-## Project Structure
-
-```
-QuickVet/
-├── server.ts                    # Express server entry point (API + Vite middleware)
-├── vite.config.ts               # Vite build config (React + Tailwind)
-├── drizzle.config.ts            # Drizzle Kit migration config
-├── package.json                 # Dependencies & scripts
-├── tsconfig.json                # TypeScript configuration
-├── index.html                   # SPA entry HTML
-├── .env.example                 # Environment variable template
-│
-├── src/
-│   ├── App.tsx                  # Main app component (routing, state, views)
-│   ├── main.tsx                 # React DOM entry
-│   ├── index.css                # Global styles + Tailwind imports
-│   ├── types.ts                 # Shared TypeScript interfaces
-│   ├── data.ts                  # Utility functions (Haversine distance, etc.)
-│   │
-│   ├── components/
-│   │   ├── Navbar.tsx           # Top navigation with role-aware links
-│   │   ├── Hero.tsx             # Landing page hero section
-│   │   ├── InteractiveMap.tsx   # Leaflet map with clinic markers
-│   │   ├── ClinicCard.tsx       # Clinic listing card component
-│   │   ├── BookingModal.tsx     # Appointment booking form
-│   │   ├── ReviewsModal.tsx     # Clinic reviews viewer/writer
-│   │   ├── EmergencyWidget.tsx  # Emergency SOS submission form
-│   │   ├── AuthModal.tsx        # Login/signup modal
-│   │   ├── UserDashboard.tsx    # Pet owner dashboard
-│   │   ├── VetDashboard.tsx     # Veterinarian management dashboard
-│   │   ├── VetRegistrationModal.tsx  # New clinic registration form
-│   │   └── Footer.tsx           # Page footer
-│   │
-│   └── server/
-│       ├── db.ts                # PostgreSQL pool + Drizzle instance
-│       ├── schema.ts            # Drizzle ORM table definitions & relations
-│       ├── jwt.ts               # Custom HS256 JWT sign/verify (zero-dep)
-│       ├── middleware.ts        # Auth & role-guard Express middleware
-│       └── seed.ts              # Database seeding script
-│
-├── public/
-│   ├── favicon.png
-│   └── apple-touch-icon.png
-│
-└── assets/
-    └── preview.svg
-```
-
----
-
-## Getting Started
-
-### Prerequisites
-
-- **Node.js** 18+ (recommended)
-- **PostgreSQL** 14+ (local or cloud — Railway, Neon, Supabase, etc.)
-
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/Abhishek-gupta18/QuickVet.git
-cd QuickVet
-```
-
->>>>>>> main
-### 2. Install dependencies
-
+### 2) Install
 ```bash
 npm install
 ```
 
-### 3. Configure environment
+### 3) Configure environment
+- Create `.env` from `.env.example`:
+  ```bash
+  cp .env.example .env
+  ```
 
+Minimum required:
+- `DATABASE_URL`
+- `JWT_SECRET`
+- `FRONTEND_URL`
+
+Recommended for dev:
+- `FRONTEND_URL=http://localhost:5173`
+
+### 4) Database
 ```bash
-cp .env.example .env
-```
-
-Edit `.env` with your values:
-
-```env
-DATABASE_URL="postgresql://user:password@localhost:5432/quickvet"
-JWT_SECRET="your-strong-random-secret-min-32-chars"
-FRONTEND_URL="http://localhost:5173"
-VITE_API_URL=""
-```
-
-### 4. Set up the database
-
-```bash
-# Push schema to PostgreSQL
 npm run db:push
-
-# (Optional) Seed with sample data
 npm run db:seed
-<<<<<<< docs/readme-and-license
 ```
 
-### 5. Start the development server
-
+### 5) Run
 ```bash
 npm run dev
 ```
 
-=======
-```
+---
 
-### 5. Start the development server
+## Production Deployment (Vercel + Render + Supabase)
 
-```bash
-npm run dev
-```
+### Important variables (how the split works)
+- **Frontend (Vercel):** uses `VITE_API_URL` to know where the API lives.
+- **Backend (Render):** uses `DATABASE_URL`, `JWT_SECRET`, `FRONTEND_URL`.
+- **Supabase:** provides PostgreSQL + `DATABASE_URL`.
 
->>>>>>> main
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+### Vercel (Frontend) setup
+1. Create a Vercel project and connect the repo.
+2. Build command: `npm run build`
+3. Output will be the default Vite build (`dist/`).
+4. Set env vars on Vercel:
+   - `VITE_API_URL=https://<your-render-backend>.onrender.com`
+
+### Render (Backend) setup
+1. Create a **Web Service** on Render.
+2. Build command: `npm run build`
+3. Start command: `npm start`
+4. Set required env vars in Render:
+   - `NODE_ENV=production`
+   - `DATABASE_URL=<supabase connection string>`
+   - `JWT_SECRET=<random secret>`
+   - `FRONTEND_URL=https://<your-vercel-frontend>.vercel.app`
+   - `BACKEND_URL=https://<your-render-backend>.onrender.com` (recommended)
+
+Optional (if enabled/needed):
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+- `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
+
+### Supabase setup
+1. Create a Supabase project and Postgres database.
+2. Copy the connection string (`DATABASE_URL`).
+3. Deploy schema using Drizzle locally, then commit migrations, OR run migrations in a Render/CI step:
+   - `npm run db:push` (dev-like)
+   - `npm run db:migrate` (preferred for production)
+
+---
+
+## Temporal (Optional)
+- Start Temporal worker:
+  ```bash
+  npm run temporal:worker
+  ```
+
+If Temporal is not running/configured, the backend continues to operate; Temporal-based features will simply not run.
+
+---
+
+## Security Notes
+- Auth routes are rate-limited.
+- JWT is stored in an `httpOnly` cookie.
+- Backend uses a CORS allow-list (must include your Vercel domain via `FRONTEND_URL`).
 
 ---
 
 ## Available Scripts
 
 | Script | Description |
-|--------|-------------|
-| `npm run dev` | Start development server (Express + Vite middleware) |
-| `npm run build` | Build for production (Vite frontend + esbuild server) |
+|---|---|
+| `npm run dev` | Dev server (Express + Vite middleware) |
+| `npm run build` | Build frontend + bundled server |
 | `npm start` | Run production server |
 | `npm run db:generate` | Generate Drizzle migration files |
 | `npm run db:migrate` | Run pending migrations |
-| `npm run db:push` | Push schema directly (dev) |
-| `npm run db:seed` | Seed database with sample data |
-| `npm run db:studio` | Open Drizzle Studio GUI |
+| `npm run db:push` | Push schema (dev) |
+| `npm run db:seed` | Seed DB |
+| `npm run db:studio` | Open Drizzle Studio |
 
 ---
 
-## Deployment
-<<<<<<< docs/readme-and-license
-
-QuickVet is designed for a **split deployment**:
-
-| Component | Platform | Notes |
-|-----------|----------|-------|
-| Frontend | **Vercel** | Set `VITE_API_URL` to backend URL |
-| Backend | **Render** | Set all env vars (`DATABASE_URL`, `JWT_SECRET`, `FRONTEND_URL`) |
-| Database | **Railway / Neon** | Managed PostgreSQL |
-
-=======
-
-QuickVet is designed for a **split deployment**:
-
-| Component | Platform | Notes |
-|-----------|----------|-------|
-| Frontend | **Vercel** | Set `VITE_API_URL` to backend URL |
-| Backend | **Render** | Set all env vars (`DATABASE_URL`, `JWT_SECRET`, `FRONTEND_URL`) |
-| Database | **Railway / Neon** | Managed PostgreSQL |
-
->>>>>>> main
-### Production Build
-
-```bash
-npm run build
-npm start
-```
-
-The build outputs:
-- `dist/` — Static frontend assets (deploy to Vercel/CDN)
-- `dist/server.cjs` — Bundled Express server (deploy to Render/Railway)
-
----
-
-## Key Design Decisions
-
-- **Custom JWT implementation** — Zero-dependency HS256 token signing/verification using Node.js `crypto` module. No `jsonwebtoken` package needed.
-- **Tenant isolation** — Bookings and emergencies are scoped by user email (pet owners) or clinic ID (veterinarians). No cross-tenant data leakage.
-- **Vite middleware mode** — In development, Vite runs as Express middleware for a single-port experience (API + SPA on port 3000).
-- **Geolocation-first UX** — Auto-detects user location on load; Haversine distance calculation for radius-based clinic filtering.
-- **Optimistic polling** — Client polls `/api/bookings` and `/api/emergency` every 6 seconds for near-real-time updates without WebSocket complexity.
-- **Role-based views** — `pet_owner` and `veterinarian` roles see different dashboards and have different API permissions enforced at middleware level.
-
----
-
-<<<<<<< docs/readme-and-license
-## License
-
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
-
----
-
-=======
->>>>>>> main
 ## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+1. Fork repository
+2. Create feature branch
+3. Commit changes
+4. Open PR
 
 ---
 
-<div align="center">
-<<<<<<< docs/readme-and-license
-  <p>Built with 💚 for pet parents in Bengaluru</p>
-=======
-  <p>Built with :green_heart: for pet parents in Bengaluru</p>
->>>>>>> main
-</div>
+## License
+MIT License. See `LICENSE` file for details.
+
